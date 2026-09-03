@@ -1,33 +1,10 @@
 import puppeteer from "puppeteer";
-import { existsSync, readdirSync } from "node:fs";
-import { homedir } from "node:os";
 import { join, dirname } from "node:path";
+import { findChrome } from "./chrome-path.mjs";
 import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
-/** Portable Chrome lookup: env override -> puppeteer resolution -> newest
- *  cache hit. */
-async function findChrome() {
-  if (process.env.PUPPETEER_EXECUTABLE_PATH) {
-    return process.env.PUPPETEER_EXECUTABLE_PATH;
-  }
-  try {
-    const resolved = puppeteer.executablePath();
-    if (existsSync(resolved)) return resolved;
-  } catch {
-    // not downloaded for the pinned version — fall through to the cache scan
-  }
-  const cacheDir = join(homedir(), ".cache", "puppeteer", "chrome");
-  if (existsSync(cacheDir)) {
-    for (const version of readdirSync(cacheDir).sort().reverse()) {
-      const candidate = join(cacheDir, version, "chrome-linux64", "chrome");
-      if (existsSync(candidate)) return candidate;
-    }
-  }
-  return undefined;
-}
 
 const browser = await puppeteer.launch({
   headless: "new",

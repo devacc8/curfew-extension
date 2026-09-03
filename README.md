@@ -1,5 +1,14 @@
 # Curfew — the internet curfew for your distraction sites
 
+<div align="center">
+
+<img src="docs/demo.gif" alt="Curfew in action" width="380">
+
+[![CI](https://github.com/devacc8/curfew-extension/actions/workflows/ci.yml/badge.svg)](https://github.com/devacc8/curfew-extension/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-7da2ff.svg)](LICENSE)
+
+</div>
+
 A privacy-first Chrome (Manifest V3) extension that tracks how long you spend
 on chosen sites and enforces a **daily budget** per domain. When the budget
 for the day is spent, the site is intercepted and replaced by a calm reminder
@@ -8,6 +17,16 @@ page until the next day.
 Working name: **Curfew** (alternatives if ever needed: Recess, Curb — see
 §9). Target order: use it yourself → prove the value → publish to the
 Chrome Web Store.
+
+## Screenshots
+
+| | |
+|---|---|
+| ![Popup dashboard](docs/screenshots/popup.png) | ![Options](docs/screenshots/options.png) |
+| ![The wall](docs/screenshots/wall.png) | ![Willpower challenge](docs/screenshots/challenge.png) |
+
+Popup dashboard with budgets and passes · the settings · the wall · a
+Willpower Protection challenge.
 
 ## 1. Why
 
