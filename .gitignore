@@ -20,3 +20,6 @@ Thumbs.db
 
 # intermediate gif frames (regenerate via npm run capture)
 docs/screenshots/gif-frames/
+
+# local-only repo decoration tool (not part of the public project)
+scripts/capture.mjs
