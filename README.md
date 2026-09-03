@@ -52,15 +52,16 @@ YOU choose, with budgets YOU set. A curfew doesn't say "never". It says
 - **Local only** — no accounts, no sync, no analytics, no external calls.
   Uninstalling deletes everything
 
-<img src="docs/screenshots/strip.png" alt="Curfew screenshots" width="100%">
-
-### The full tour
-
-<img src="docs/screenshots/popup.png" alt="Popup dashboard" width="100%">
-<img src="docs/screenshots/options.png" alt="Settings" width="100%">
-<img src="docs/screenshots/wall.png" alt="The wall" width="100%">
-<img src="docs/screenshots/challenge.png" alt="Equation challenge" width="100%">
-<img src="docs/screenshots/puzzle.png" alt="15-puzzle challenge" width="100%">
+<details>
+<summary><b>The sea of screens</b></summary>
+<p>
+  <img src="docs/screenshots/popup.png" alt="Popup dashboard" width="100%">
+  <img src="docs/screenshots/options.png" alt="Settings" width="100%">
+  <img src="docs/screenshots/wall.png" alt="The wall" width="100%">
+  <img src="docs/screenshots/challenge.png" alt="Equation challenge" width="100%">
+  <img src="docs/screenshots/puzzle.png" alt="15-puzzle challenge" width="100%">
+</p>
+</details>
 
 ## How it works
 
