@@ -51,9 +51,10 @@ YOU choose, with budgets YOU set. A curfew doesn't say "never". It says
   Uninstalling deletes everything
 
 <p>
-  <img src="docs/screenshots/popup.png" width="31%">
-  <img src="docs/screenshots/wall.png" width="31%">
-  <img src="docs/screenshots/challenge.png" width="31%">
+  <img src="docs/screenshots/popup.png" width="49%">
+  <img src="docs/screenshots/wall.png" width="49%">
+  <img src="docs/screenshots/challenge.png" width="49%">
+  <img src="docs/screenshots/puzzle.png" width="49%">
 </p>
 
 ## How it works
