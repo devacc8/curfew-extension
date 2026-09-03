@@ -17,3 +17,6 @@ Thumbs.db
 .idea/
 .vscode/
 *.log
+
+# intermediate gif frames (regenerate via npm run capture)
+docs/screenshots/gif-frames/
