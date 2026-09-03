@@ -11,7 +11,6 @@ Local-only. Zero tracking. Zero install warnings.
 
 <img src="docs/demo.gif" alt="Curfew in action" width="100%">
 
-<img src="docs/screenshots/puzzle.png" alt="Willpower Protection: the 15-puzzle challenge" width="80%">
 
 [![CI](https://github.com/devacc8/curfew-extension/actions/workflows/ci.yml/badge.svg)](https://github.com/devacc8/curfew-extension/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-7da2ff.svg)](LICENSE)
@@ -52,8 +51,10 @@ YOU choose, with budgets YOU set. A curfew doesn't say "never". It says
 - **Local only** — no accounts, no sync, no analytics, no external calls.
   Uninstalling deletes everything
 
+<img src="docs/screenshots/puzzle.png" alt="Willpower Protection: the 15-puzzle challenge" width="100%">
+
 <details>
-<summary><b>The sea of screens</b></summary>
+<summary><u><b>See more screenshots</b></u></summary>
 <p>
   <img src="docs/screenshots/popup.png" alt="Popup dashboard" width="100%">
   <img src="docs/screenshots/options.png" alt="Settings" width="100%">
