@@ -11,6 +11,8 @@ Local-only. Zero tracking. Zero install warnings.
 
 <img src="docs/demo.gif" alt="Curfew in action" width="100%">
 
+<img src="docs/screenshots/puzzle.png" alt="Willpower Protection: the 15-puzzle challenge" width="80%">
+
 [![CI](https://github.com/devacc8/curfew-extension/actions/workflows/ci.yml/badge.svg)](https://github.com/devacc8/curfew-extension/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-7da2ff.svg)](LICENSE)
 ![Manifest V3](https://img.shields.io/badge/Manifest-V3-7da2ff.svg)
@@ -52,15 +54,13 @@ YOU choose, with budgets YOU set. A curfew doesn't say "never". It says
 
 <img src="docs/screenshots/strip.png" alt="Curfew screenshots" width="100%">
 
-<details>
-<summary><b>Full-size screenshots</b></summary>
-<p>
-  <img src="docs/screenshots/popup.png" width="49%">
-  <img src="docs/screenshots/wall.png" width="49%">
-  <img src="docs/screenshots/challenge.png" width="49%">
-  <img src="docs/screenshots/puzzle.png" width="49%">
-</p>
-</details>
+### The full tour
+
+<img src="docs/screenshots/popup.png" alt="Popup dashboard" width="100%">
+<img src="docs/screenshots/options.png" alt="Settings" width="100%">
+<img src="docs/screenshots/wall.png" alt="The wall" width="100%">
+<img src="docs/screenshots/challenge.png" alt="Equation challenge" width="100%">
+<img src="docs/screenshots/puzzle.png" alt="15-puzzle challenge" width="100%">
 
 ## How it works
 
