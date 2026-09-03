@@ -117,17 +117,16 @@ function buildRow(item) {
   budget.value = item.budgetMinutes;
   budget.addEventListener("change", async () => {
     const v = Math.max(0, Math.min(1440, Number(budget.value) || 0));
-    const done = await guarded(async () => {
+    const apply = async () => {
       await update((state) => {
         const it = state.config.items.find((i) => i.id === item.id);
         if (it) it.budgetMinutes = v;
       });
-    });
-    if (!done) {
-      budget.value = item.budgetMinutes;
-      return;
-    }
-    budget.value = v;
+      budget.value = v;
+    };
+    if (v <= item.budgetMinutes) return apply();
+    const done = await guarded(apply);
+    if (!done) budget.value = item.budgetMinutes;
   });
 
   const unit = document.createElement("span");
@@ -301,16 +300,15 @@ els.protectToggle.addEventListener("click", async () => {
 els.passesLimit.addEventListener("change", async () => {
   const previous = (await load()).config.unblockPassesPerDay;
   const value = Math.max(0, Math.min(99, Number(els.passesLimit.value) || 0));
-  const done = await guarded(async () => {
+  const apply = async () => {
     await update((state) => {
       state.config.unblockPassesPerDay = value;
     });
-  });
-  if (!done) {
-    els.passesLimit.value = previous;
-    return;
-  }
-  els.passesLimit.value = value;
+    els.passesLimit.value = value;
+  };
+  if (value <= previous) return apply();
+  const done = await guarded(apply);
+  if (!done) els.passesLimit.value = previous;
 });
 els.export.addEventListener("click", exportData);
 

@@ -12,7 +12,7 @@ body {
   min-height: 100vh;
   display: grid;
   place-items: center;
-  background: var(--bg);
+  background: linear-gradient(135deg, #1d2f55 0%, #0a0f1c 75%);
   color: var(--fg);
   font: 16px/1.6 system-ui, sans-serif;
 }

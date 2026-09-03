@@ -525,7 +525,9 @@ forms tested against tricky hosts (`||x.company/` must not match
 
 ### 9.4 Unblock window ("stay anyway")
 
-- Shown on the wall; in protected mode requires the password (guarded()).
+- Shown on the wall; PASS-through in protected mode — a 15-minute pass is
+  PLANNED use, not a relaxation, so no challenge is asked (the global
+  passes limit still applies).
   Pressing sets `runtime.unblockUntil[pattern] = now + unblockMinutes`,
   increments today's `unblocks[pattern]`, removes the rule, schedules the
   re-add alarm.
@@ -566,7 +568,7 @@ connection):
 | Message | From | Effect |
 |---|---|---|
 | `{type: "blockNow", itemId}` | popup | mark closed now → reconcile rules + redirect open tabs |
-| `{type: "unblock:request", itemId}` | blocked page | passes-limit check + challenge guard + policy (§9.4) → open window |
+| `{type: "unblock:request", itemId}` | blocked page | passes-limit check + policy (§9.4) → open window (no challenge: planned use) |
 | `{type: "flush"}` | any page | force usage flush |
 
 UI refresh: pages subscribe to `storage.onChanged` — no polling, no push

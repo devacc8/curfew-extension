@@ -2,7 +2,6 @@ import { load } from "./common/storage.js";
 import { dayKey } from "./common/time.js";
 import { parsePattern, matchesHost } from "./common/patterns.js";
 import { secondsUsedToday, passesLeftToday } from "./common/budget.js";
-import { guarded } from "./protect.js";
 
 const msg = (key) => chrome.i18n.getMessage(key);
 
@@ -50,24 +49,19 @@ async function init(domain) {
   stay.addEventListener("click", async () => {
     stay.disabled = true;
     let response;
-    const done = await guarded(async () => {
-      try {
-        response = await chrome.runtime.sendMessage({
-          type: "unblock:request",
-          itemId: item.id,
-        });
-      } catch {
-        response = null;
-      }
-      return Boolean(response?.ok);
-    });
-    if (done && response?.ok) {
+    try {
+      response = await chrome.runtime.sendMessage({
+        type: "unblock:request",
+        itemId: item.id,
+      });
+    } catch {
+      response = null;
+    }
+    if (response?.ok) {
       location.href = `https://${domain}/`;
     } else if (response?.reason === "limit") {
       stay.disabled = true;
       document.getElementById("hint").textContent = msg("limitReached");
-    } else if (!done) {
-      stay.disabled = false;
     } else {
       stay.disabled = false;
       document.getElementById("hint").textContent = msg("unblockFailed");

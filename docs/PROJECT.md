@@ -95,13 +95,13 @@ budget.
 - "Block now" (hard block without waiting for the budget) — free;
 - Adding sites: via the form or right-click → "Add this site to Curfew" —
   free;
-- **Protected mode** (optional): instead of a password, permissive actions
-  ask you to solve a challenge first — a multi-term equation with brackets
-  (5-7 terms, random every time, integer answer) or a 15-puzzle. The
-  choice is made once at enable time; solving again is required for stay
-  anyway, disabling a site or the app, budget edits, removes, import,
-  passes limit. Adding sites and Block stay free. The friction IS the
-  lock — deliberate by design.
+- **Protected mode** (optional): instead of a password, RELAXING the rules
+  asks you to solve a challenge first — a multi-term equation with brackets
+  (5-7 terms, random every time, integer answer) or a 15-puzzle: disabling
+  a site or the app, raising a budget or the passes limit, removes, import.
+  **Tightening stays free** (Block now, lower budgets), and so do adding
+  sites and planned 15-minute passes. The friction IS the lock — deliberate
+  by design.
 - Global daily cap on 15-min passes across all sites (default 3,
   0 = none).
 

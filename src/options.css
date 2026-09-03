@@ -14,7 +14,7 @@ body {
   max-width: 640px;
   margin: 0 auto;
   padding: 24px 16px;
-  background: var(--bg);
+  background: linear-gradient(160deg, #1d2f55 0%, #14161a 45%, #0a0f1c 100%) fixed;
   color: var(--fg);
   font: 14px/1.5 system-ui, sans-serif;
 }

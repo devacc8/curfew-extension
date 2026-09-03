@@ -42,9 +42,9 @@ YOU choose, with budgets YOU set. A curfew doesn't say "never". It says
   extension sleeps
 - **Stay anyway, honestly** — 15-minute passes exist on purpose, and every
   one of them is counted and shown in the dashboard
-- **Willpower Protection** — optional mode where every permissive change
-  asks you to solve a challenge first: a multi-term equation or the
-  15-puzzle. The friction IS the lock
+- **Willpower Protection** — optional mode where relaxing the rules asks
+  you to solve a challenge first: an equation or the 15-puzzle. The
+  friction IS the lock
 - **Active time only** — idle (60 s), unfocused windows and accidental
   hops don't count
 - **Local only** — no accounts, no sync, no analytics, no external calls.
