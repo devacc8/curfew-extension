@@ -9,7 +9,7 @@
 Daily time budgets for the sites you choose, enforced at the network level.
 Local-only. Zero tracking. Zero install warnings.
 
-<img src="docs/demo.gif" alt="Curfew in action" width="380">
+<img src="docs/demo.gif" alt="Curfew in action" width="100%">
 
 [![CI](https://github.com/devacc8/curfew-extension/actions/workflows/ci.yml/badge.svg)](https://github.com/devacc8/curfew-extension/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-7da2ff.svg)](LICENSE)
