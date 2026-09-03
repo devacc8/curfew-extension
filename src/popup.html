@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header>
+    <h1>Curfew</h1>
+    <label class="switch" data-i18n-title="masterToggle">
+      <input type="checkbox" id="master">
+      <span class="slider"></span>
+    </label>
+    <button id="openOptions" class="icon" data-i18n-title="openOptions">&#9881;</button>
+  </header>
+
+  <p id="totalsLine"></p>
+
+  <section id="topSection" hidden>
+    <h2 data-i18n="topSitesHeading"></h2>
+    <ol id="topSites"></ol>
+  </section>
+
+  <section>
+    <h2 data-i18n="yourSitesHeading"></h2>
+    <ul id="items"></ul>
+  </section>
+
+  <div class="add-row">
+    <input type="text" id="pattern" data-i18n-placeholder="patternPlaceholder">
+    <input type="number" id="minutes" min="0" max="1440" value="30">
+    <button id="add" data-i18n="add"></button>
+  </div>
+
+  <p id="status" aria-live="polite"></p>
+
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

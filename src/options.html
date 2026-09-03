@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <header>
+    <h1 data-i18n="optionsTitle"></h1>
+    <label class="switch" data-i18n-title="masterToggle">
+      <input type="checkbox" id="master">
+      <span class="slider"></span>
+    </label>
+  </header>
+
+  <section>
+    <h2 data-i18n="addHeading"></h2>
+    <div class="add-row">
+      <input type="text" id="pattern" data-i18n-placeholder="patternPlaceholder">
+      <input type="number" id="minutes" min="0" max="1440" value="30">
+      <button id="add" data-i18n="add"></button>
+    </div>
+    <p id="status" aria-live="polite"></p>
+  </section>
+
+  <section>
+    <div class="sites-head">
+      <h2 data-i18n="sitesHeading"></h2>
+      <input type="search" id="siteSearch" data-i18n-placeholder="searchPlaceholder">
+    </div>
+    <ul id="items"></ul>
+  </section>
+
+  <section>
+    <div class="protect-box">
+      <div class="protect-line">
+        <div class="protect-info">
+          <span class="protect-label" data-i18n="protectHeading"></span>
+          <p class="section-desc" data-i18n="protectDesc"></p>
+        </div>
+        <span class="protect-state">
+          <span id="protectStatus" class="status-off"></span>
+          <button id="protectToggle" data-i18n="protectEnable"></button>
+        </span>
+      </div>
+      <p id="protectMsg" aria-live="polite"></p>
+    </div>
+    <div class="passes-box">
+      <div class="protect-row">
+        <label for="passesLimit" data-i18n="passesLimitLabel"></label>
+        <input type="number" id="passesLimit" min="0" max="99">
+      </div>
+    </div>
+  </section>
+
+  <details id="dataBox">
+    <summary data-i18n="dataHeading"></summary>
+    <div class="data-row">
+      <button id="export" data-i18n="exportData"></button>
+      <label class="file-label">
+        <input type="file" id="import" accept="application/json,.json">
+        <span data-i18n="importData"></span>
+      </label>
+    </div>
+    <p id="dataStatus" aria-live="polite"></p>
+  </details>
+
+  <script type="module" src="options.js"></script>
+</body>
+</html>

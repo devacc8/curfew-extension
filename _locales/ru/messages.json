@@ -1,0 +1,188 @@
+{
+  "extName": {
+    "message": "Curfew"
+  },
+  "extDesc": {
+    "message": "Дневные лимиты времени для выбранных вами сайтов. Всё локально, ноль слежки."
+  },
+  "masterToggle": {
+    "message": "Все лимиты активны"
+  },
+  "patternPlaceholder": {
+    "message": "x.com или *.x.com"
+  },
+  "minutesPlaceholder": {
+    "message": "Лимит, мин"
+  },
+  "add": {
+    "message": "Добавить"
+  },
+  "empty": {
+    "message": "Сайтов пока нет. Добавьте первый."
+  },
+  "remove": {
+    "message": "Удалить"
+  },
+  "budgetUnit": {
+    "message": "мин/день"
+  },
+  "invalidPattern": {
+    "message": "Введите домен вида x.com или *.x.com — маска допустима, https:// не нужен."
+  },
+  "contextAddSite": {
+    "message": "Добавить этот сайт в Curfew"
+  },
+  "pressAddToGrant": {
+    "message": "Нажмите «Добавить», чтобы выдать доступ."
+  },
+  "addedGranted": {
+    "message": "Добавлено. Доступ выдан."
+  },
+  "addedDenied": {
+    "message": "Добавлено без доступа. Выдать доступ можно позже в списке сайтов."
+  },
+  "openOptions": {
+    "message": "Настройки"
+  },
+  "accessGranted": {
+    "message": "доступ выдан"
+  },
+  "accessDenied": {
+    "message": "нет доступа"
+  },
+  "grantAccess": {
+    "message": "Выдать доступ"
+  },
+  "optionsTitle": {
+    "message": "Настройки Curfew"
+  },
+  "sitesHeading": {
+    "message": "Сайты под комендантским часом"
+  },
+  "searchPlaceholder": {
+    "message": "Поиск…"
+  },
+  "noMatches": {
+    "message": "Ничего не найдено."
+  },
+  "addHeading": {
+    "message": "Добавить сайт"
+  },
+  "todayLabel": {
+    "message": "Сегодня:"
+  },
+  "yesterdayLabel": {
+    "message": "Вчера:"
+  },
+  "topSitesHeading": {
+    "message": "Топ сайтов за сегодня"
+  },
+  "yourSitesHeading": {
+    "message": "Ваши сайты"
+  },
+  "blockNow": {
+    "message": "Заблокировать"
+  },
+  "closedLabel": {
+    "message": "закрыт"
+  },
+  "leftSuffix": {
+    "message": "осталось"
+  },
+  "dataHeading": {
+    "message": "Данные"
+  },
+  "exportData": {
+    "message": "Экспорт данных"
+  },
+  "importData": {
+    "message": "Импорт"
+  },
+  "imported": {
+    "message": "Импортировано."
+  },
+  "importFailed": {
+    "message": "Импорт не удался: это не файл экспорта Curfew."
+  },
+  "protectHeading": {
+    "message": "Willpower Protection"
+  },
+  "protectDesc": {
+    "message": "Когда включено, любое послабление сначала требует решить испытание: уравнение или пятнашки. Добавление сайтов и Block остаются свободными."
+  },
+  "protectStatusOn": {
+    "message": "вкл"
+  },
+  "protectStatusOff": {
+    "message": "выкл"
+  },
+  "protectEnable": {
+    "message": "Включить"
+  },
+  "protectDisable": {
+    "message": "Выключить"
+  },
+  "dialogOk": {
+    "message": "OK"
+  },
+  "dialogCancel": {
+    "message": "Отмена"
+  },
+  "passesLimitLabel": {
+    "message": "15-минутных пропусков в день, на все сайты"
+  },
+  "passesLeftLabel": {
+    "message": "Пропусков осталось сегодня:"
+  },
+  "limitReached": {
+    "message": "15-минутные пропуски на сегодня закончились."
+  },
+  "blockedTitle": {
+    "message": "Комендантский час"
+  },
+  "blockedText": {
+    "message": "Этот сайт закрыт на сегодня. Он откроется снова после полуночи."
+  },
+  "stayAnyway": {
+    "message": "Остаться на 15 минут"
+  },
+  "usedTodayLabel": {
+    "message": "Время здесь за сегодня:"
+  },
+  "passesTodayLabel": {
+    "message": "15-минутных пропусков сегодня:"
+  },
+  "minutesShort": {
+    "message": "мин"
+  },
+  "unblockFailed": {
+    "message": "Не удалось снять комендантский час. Попробуйте перезагрузить страницу."
+  },
+  "challengeTitle": {
+    "message": "Решите, чтобы продолжить"
+  },
+  "answerPlaceholder": {
+    "message": "Ответ"
+  },
+  "challengeWrong": {
+    "message": "Неверно — попробуйте это:"
+  },
+  "puzzleMoves": {
+    "message": "Ходы"
+  },
+  "puzzleSolved": {
+    "message": "Решено!"
+  },
+  "kindEquation": {
+    "message": "Уравнение"
+  },
+  "kindPuzzle": {
+    "message": "Пятнашки"
+  },
+  "protectEnabled": {
+    "message": "Защита включена."
+  },
+  "protectOffMsg": {
+    "message": "Защита выключена."
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "name": "curfew-extension",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "lint": "eslint src tests",
+    "gen:icons": "node scripts/gen-icons.mjs",
+    "test": "npm run lint && node --test tests/*.test.js",
+    "smoke": "node scripts/smoke-protection.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.9.1",
+    "puppeteer": "^25.9.0"
+  }
+}

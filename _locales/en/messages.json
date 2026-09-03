@@ -1,0 +1,188 @@
+{
+  "extName": {
+    "message": "Curfew"
+  },
+  "extDesc": {
+    "message": "Daily time budgets for the sites you choose. Local-only, zero tracking."
+  },
+  "masterToggle": {
+    "message": "All budgets active"
+  },
+  "patternPlaceholder": {
+    "message": "x.com or *.x.com"
+  },
+  "minutesPlaceholder": {
+    "message": "Budget, min"
+  },
+  "add": {
+    "message": "Add"
+  },
+  "empty": {
+    "message": "No sites yet. Add one to start."
+  },
+  "remove": {
+    "message": "Remove"
+  },
+  "budgetUnit": {
+    "message": "min/day"
+  },
+  "invalidPattern": {
+    "message": "Enter a domain like x.com or *.x.com — wildcards are allowed, https:// is not needed."
+  },
+  "contextAddSite": {
+    "message": "Add this site to Curfew"
+  },
+  "pressAddToGrant": {
+    "message": "Press Add to grant access."
+  },
+  "addedGranted": {
+    "message": "Added. Access granted."
+  },
+  "addedDenied": {
+    "message": "Added without access. Use the site list to grant access later."
+  },
+  "openOptions": {
+    "message": "Settings"
+  },
+  "accessGranted": {
+    "message": "access granted"
+  },
+  "accessDenied": {
+    "message": "no access"
+  },
+  "grantAccess": {
+    "message": "Grant access"
+  },
+  "optionsTitle": {
+    "message": "Curfew settings"
+  },
+  "sitesHeading": {
+    "message": "Sites under curfew"
+  },
+  "searchPlaceholder": {
+    "message": "Search…"
+  },
+  "noMatches": {
+    "message": "No matches."
+  },
+  "addHeading": {
+    "message": "Add a site"
+  },
+  "todayLabel": {
+    "message": "Today:"
+  },
+  "yesterdayLabel": {
+    "message": "Yesterday:"
+  },
+  "topSitesHeading": {
+    "message": "Top sites today"
+  },
+  "yourSitesHeading": {
+    "message": "Your sites"
+  },
+  "blockNow": {
+    "message": "Block"
+  },
+  "closedLabel": {
+    "message": "closed"
+  },
+  "leftSuffix": {
+    "message": "left"
+  },
+  "dataHeading": {
+    "message": "Data"
+  },
+  "exportData": {
+    "message": "Export data"
+  },
+  "importData": {
+    "message": "Import"
+  },
+  "imported": {
+    "message": "Imported."
+  },
+  "importFailed": {
+    "message": "Import failed: not a Curfew export file."
+  },
+  "protectHeading": {
+    "message": "Willpower Protection"
+  },
+  "protectDesc": {
+    "message": "When enabled, every permissive change asks you to solve a challenge first: an equation or the 15-puzzle. Adding sites and Block stay free."
+  },
+  "protectStatusOn": {
+    "message": "on"
+  },
+  "protectStatusOff": {
+    "message": "off"
+  },
+  "protectEnable": {
+    "message": "Enable"
+  },
+  "protectDisable": {
+    "message": "Disable"
+  },
+  "dialogOk": {
+    "message": "OK"
+  },
+  "dialogCancel": {
+    "message": "Cancel"
+  },
+  "passesLimitLabel": {
+    "message": "15-min passes per day, all sites"
+  },
+  "passesLeftLabel": {
+    "message": "Passes left today:"
+  },
+  "limitReached": {
+    "message": "No 15-min passes left today."
+  },
+  "blockedTitle": {
+    "message": "Under curfew"
+  },
+  "blockedText": {
+    "message": "This site is closed for today. It opens again after midnight."
+  },
+  "stayAnyway": {
+    "message": "Stay anyway for 15 minutes"
+  },
+  "usedTodayLabel": {
+    "message": "Time here today:"
+  },
+  "passesTodayLabel": {
+    "message": "15-minute passes used today:"
+  },
+  "minutesShort": {
+    "message": "min"
+  },
+  "unblockFailed": {
+    "message": "Could not lift the curfew. Try reloading this page."
+  },
+  "challengeTitle": {
+    "message": "Solve to continue"
+  },
+  "answerPlaceholder": {
+    "message": "Answer"
+  },
+  "challengeWrong": {
+    "message": "Wrong — try this one:"
+  },
+  "puzzleMoves": {
+    "message": "Moves"
+  },
+  "puzzleSolved": {
+    "message": "Solved!"
+  },
+  "kindEquation": {
+    "message": "Equation"
+  },
+  "kindPuzzle": {
+    "message": "15-puzzle"
+  },
+  "protectEnabled": {
+    "message": "Protection enabled."
+  },
+  "protectOffMsg": {
+    "message": "Protection disabled."
+  }
+}

@@ -1,0 +1,332 @@
+import { load, update, upsertItem } from "./common/storage.js";
+import { dayKey, nextLocalMidnight } from "./common/time.js";
+import { parsePattern, matchesHost } from "./common/patterns.js";
+import {
+  transition,
+  recoveryCredit,
+  applyCredit,
+  recordUnblock,
+  passesLeftToday,
+} from "./common/budget.js";
+import { desiredRules, isOpen } from "./common/rules.js";
+import { pruneDays } from "./common/transfer.js";
+
+const TICK = "tick";
+const MIDNIGHT = "midnight";
+const UNBLOCK_PREFIX = "unblock:";
+const MENU_ID = "curfew-add-site";
+const TICK_MINUTES = 5;
+const IDLE_SECONDS = 60;
+const RECOVERY_CAP_MS = 6 * 60 * 1000;
+const KEEP_DAYS = 60;
+const BLOCKED_PAGE = "/src/blocked.html";
+
+let warm = false;
+let queryState = "unknown";
+
+chrome.runtime.onInstalled.addListener(() => init().catch((e) => console.error("curfew: init failed", e)));
+chrome.runtime.onStartup.addListener(() => onStartup().catch((e) => console.error("curfew: startup failed", e)));
+chrome.alarms.onAlarm.addListener((alarm) => onAlarm(alarm).catch((e) => console.error("curfew: alarm failed", alarm.name, e)));
+chrome.contextMenus.onClicked.addListener((info, tab) => onContextMenu(info, tab).catch((e) => console.error("curfew: menu handler failed", e)));
+chrome.tabs.onActivated.addListener(runTracker);
+chrome.tabs.onUpdated.addListener(onTabUpdated);
+chrome.windows.onFocusChanged.addListener(runTracker);
+chrome.idle.onStateChanged.addListener(runTracker);
+chrome.runtime.onMessage.addListener(onMessage);
+
+function runTracker() {
+  onTrackerEvent().catch((error) => console.error("curfew: tracker failed", error));
+}
+chrome.contextMenus.onClicked.addListener(onContextMenu);
+
+function ensureContextMenu() {
+  chrome.contextMenus.removeAll(() => {
+    chrome.contextMenus.create({
+      id: MENU_ID,
+      title: chrome.i18n.getMessage("contextAddSite") || "Add this site to Curfew",
+      contexts: ["page"],
+    });
+  });
+}
+
+async function init() {
+  const state = await load();
+  chrome.idle.setDetectionInterval(IDLE_SECONDS);
+  chrome.alarms.create(TICK, { periodInMinutes: TICK_MINUTES });
+  scheduleMidnight();
+  ensureContextMenu();
+  await reconcile(await rollover(state));
+}
+
+async function onStartup() {
+  const state = await update((s) => {
+    s.session = null;
+  });
+  ensureContextMenu();
+  await reconcile(await rollover(state));
+}
+
+/**
+ * Right-click invocation is the reliable way to learn the current site:
+ * the menu click provides info.pageUrl without any host access, and it
+ * counts as an activeTab-invoking gesture (unlike opening the popup).
+ */
+async function onContextMenu(info, tab) {
+  try {
+    if (info.menuItemId !== MENU_ID) return;
+    const raw = info.pageUrl || tab?.url || "";
+    let host = null;
+    try {
+      const parsed = new URL(raw);
+      if (parsed.protocol === "https:" || parsed.protocol === "http:") {
+        host = parsed.hostname;
+      }
+    } catch {
+      host = null;
+    }
+    console.log("curfew: context menu add", { pageUrl: info.pageUrl, host });
+    if (!host) {
+      console.warn("curfew: no http(s) host in pageUrl, nothing to add");
+      return;
+    }
+    let state = await load();
+    const exists = state.config.items.some((i) => {
+      const p = parsePattern(i.pattern);
+      return p.ok && matchesHost(p.pattern, host);
+    });
+    if (!exists) {
+      state = await update((s) => {
+        upsertItem(s, { pattern: host, budgetMinutes: 30, access: "denied" });
+      }, state);
+      await reconcile(state);
+      console.log("curfew: item added", host);
+    }
+    const url = `${chrome.runtime.getURL("src/options.html")}?add=${encodeURIComponent(host)}`;
+    const opened = await chrome.tabs.create({ url });
+    console.log("curfew: options tab opened", opened?.id ?? null);
+  } catch (error) {
+    console.error("curfew: context menu handler failed", error);
+  }
+}
+
+function scheduleMidnight() {
+  chrome.alarms.create(MIDNIGHT, { when: nextLocalMidnight().getTime() });
+}
+
+function onTabUpdated(_tabId, changeInfo) {
+  if (changeInfo.url || changeInfo.status === "loading") {
+    onTrackerEvent().catch((error) => console.error("curfew: tracker failed", error));
+  }
+}async function onTrackerEvent() {
+  const now = Date.now();
+  const fromWake = !warm;
+  warm = true;
+
+  const loaded = await load();
+  const env = await currentEnv(loaded);
+
+  let state = await update((s) => {
+    if (fromWake && s.session) {
+      const credit = recoveryCredit(s.session, now, RECOVERY_CAP_MS);
+      if (credit) {
+        applyCredit(s, credit, dayKey(now));
+        s.session = { ...s.session, lastTickAt: now, phaseStartedAt: now };
+      }
+    }
+    const { state: session, credits } = transition(
+      s.session,
+      { type: "environment", pattern: env.pattern, canCount: env.canCount },
+      s.config,
+      now
+    );
+    s.session = session;
+    for (const c of credits) applyCredit(s, c, dayKey(now));
+  }, loaded);
+
+  state = await rollover(state);
+  await reconcile(state);
+  await bounceClosedTabs(state);
+}
+
+async function currentEnv(state) {
+  const empty = { pattern: null, canCount: false };
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+    if (!tab) return empty;
+    let pattern = null;
+    if (tab.url) {
+      try {
+        pattern = patternForHost(state, new URL(tab.url).hostname);
+      } catch {
+        pattern = null;
+      }
+    }
+    const win = await chrome.windows.get(tab.windowId);
+    const idleState = await chrome.idle.queryState(IDLE_SECONDS);
+    return { pattern, canCount: Boolean(win?.focused) && idleState === "active" };
+  } catch {
+    return empty;
+  }
+}
+
+function patternForHost(state, host) {
+  for (const item of state.config.items) {
+    if (!item.enabled || item.access !== "granted") continue;
+    const parsed = parsePattern(item.pattern);
+    if (parsed.ok && matchesHost(parsed.pattern, host)) return item.pattern;
+  }
+  return null;
+}
+
+function blockedPageFor(host) {
+  if (queryState === "no") return BLOCKED_PAGE;
+  return `${BLOCKED_PAGE}?domain=${encodeURIComponent(host)}`;
+}
+
+async function reconcile(state) {
+  const now = Date.now();
+  const desired = desiredRules(state, {
+    day: dayKey(now),
+    nowMs: now,
+    blockedPageFor,
+  });
+  const actual = await chrome.declarativeNetRequest.getDynamicRules();
+  const actualById = new Map(actual.map((r) => [r.id, r]));
+  const removeRuleIds = [];
+  const addRules = [];
+  for (const rule of desired) {
+    const existing = actualById.get(rule.id);
+    const same =
+      existing &&
+      JSON.stringify(existing.action) === JSON.stringify(rule.action) &&
+      JSON.stringify(existing.condition) === JSON.stringify(rule.condition);
+    if (!same) {
+      removeRuleIds.push(rule.id);
+      addRules.push(rule);
+    }
+    actualById.delete(rule.id);
+  }
+  for (const id of actualById.keys()) removeRuleIds.push(id);
+  if (!removeRuleIds.length && !addRules.length) return;
+  try {
+    await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds, addRules });
+    if (addRules.length) queryState = "yes";
+  } catch (error) {
+    if (queryState === "unknown") {
+      queryState = "no";
+      return reconcile(state);
+    }
+    throw error;
+  }
+}
+
+async function bounceClosedTabs(state) {
+  const now = Date.now();
+  const day = dayKey(now);
+  let tabs;
+  try {
+    tabs = await chrome.tabs.query({ active: true });
+  } catch {
+    return;
+  }
+  for (const tab of tabs) {
+    if (!tab?.id || !tab.url) continue;
+    let host = null;
+    try {
+      host = new URL(tab.url).hostname;
+    } catch {
+      continue;
+    }
+    if (!host) continue;
+    const item = state.config.items.find((i) => {
+      if (!i.enabled || i.access !== "granted") return false;
+      const p = parsePattern(i.pattern);
+      return p.ok && matchesHost(p.pattern, host);
+    });
+    if (!item || isOpen(state, item, day, now)) continue;
+    try {
+      await chrome.tabs.update(tab.id, { url: blockedPageFor(host) });
+    } catch (error) {
+      console.warn("curfew: could not redirect tab", tab.id, error);
+    }
+  }
+}
+
+async function flushTick() {
+  const now = Date.now();
+  return update((s) => {
+    if (!s.session) return;
+    const { state: session, credits } = transition(s.session, { type: "tick" }, s.config, now);
+    s.session = session;
+    for (const c of credits) applyCredit(s, c, dayKey(now));
+  });
+}
+
+async function rollover(state) {
+  const today = dayKey(Date.now());
+  if (state.runtime.lastRolloverDay === today) return state;
+  return update((s) => {
+    pruneDays(s, KEEP_DAYS);
+    s.runtime.unblockUntil = {};
+    s.runtime.dayOverrides = {};
+    s.runtime.lastRolloverDay = today;
+  }, state);
+}
+
+async function onAlarm(alarm) {
+  if (alarm.name === TICK) {
+    await flushTick();
+  } else if (alarm.name !== MIDNIGHT && !alarm.name.startsWith(UNBLOCK_PREFIX)) {
+    return;
+  }
+  const state = await rollover(await load());
+  await reconcile(state);
+  await bounceClosedTabs(state);
+  if (alarm.name === MIDNIGHT) scheduleMidnight();
+}
+
+function onMessage(message, _sender, sendResponse) {
+  (async () => {
+    try {
+      if (message?.type === "unblock:request") {
+        const loaded = await load();
+        const item = loaded.config.items.find((i) => i.id === message.itemId);
+        if (!item || item.access !== "granted") return sendResponse({ ok: false });
+        const day = dayKey(Date.now());
+        const left = passesLeftToday(loaded, day, loaded.config.unblockPassesPerDay);
+        if (left <= 0) return sendResponse({ ok: false, reason: "limit" });
+        const until = Date.now() + loaded.config.unblockMinutes * 60_000;
+        const state = await update((s) => {
+          s.runtime.unblockUntil[item.pattern] = until;
+          recordUnblock(s, item.pattern, day);
+        }, loaded);
+        chrome.alarms.create(UNBLOCK_PREFIX + item.ruleId, { when: until });
+        await reconcile(state);
+        sendResponse({ ok: true, until });
+      } else if (message?.type === "blockNow") {
+        const loaded = await load();
+        const item = loaded.config.items.find((i) => i.id === message.itemId);
+        if (!item) return sendResponse({ ok: false });
+        const state = await update((s) => {
+          s.runtime.dayOverrides[item.pattern] = {
+            day: dayKey(Date.now()),
+            action: "block",
+          };
+        }, loaded);
+        await reconcile(state);
+        await bounceClosedTabs(state);
+        sendResponse({ ok: true });
+      } else if (message?.type === "flush") {
+        const state = await flushTick();
+        await reconcile(state);
+        await bounceClosedTabs(state);
+        sendResponse({ ok: true });
+      } else {
+        sendResponse({ ok: false });
+      }
+    } catch {
+      sendResponse({ ok: false });
+    }
+  })();
+  return true;
+}

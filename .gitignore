@@ -1,0 +1,19 @@
+# dependencies
+node_modules/
+
+# build artifacts
+dist/
+*.zip
+
+# env & secrets
+.env
+.env.*
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# editors & tools
+.idea/
+.vscode/
+*.log
