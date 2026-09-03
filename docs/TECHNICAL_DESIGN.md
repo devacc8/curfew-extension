@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Status | Draft → implementation target for M0–M2 |
-| Supersedes | README §4 details (README stays the product doc + summary) |
+| Supersedes | PROJECT §4 details (PROJECT stays the working product doc + summary) |
 | Privacy posture | Zero install warnings · per-site consent · zero network · local-only |
 | Stack | Vanilla ES2022 modules on Chrome MV3 · no build step · zero npm deps |
 
@@ -44,7 +44,7 @@
   no build step and no dependencies.
 
 **Non-goals (v1):** path-level rules, incognito coverage, other browsers,
-blocking `chrome://` pages, any server-side component. See README §3.5 and
+blocking `chrome://` pages, any server-side component. See PROJECT §3.5 and
 §5 (M4+).
 
 ---
@@ -54,7 +54,7 @@ blocking `chrome://` pages, any server-side component. See README §3.5 and
 | Layer | Choice | Why | Constraint it imposes |
 |---|---|---|---|
 | Platform | Chrome MV3, `minimum_chrome_version: "121"` | DNR dynamic rules mature; 5k dynamic-rule floor is plenty; modern SW behavior | No Chromium < 121 support |
-| Language | Vanilla JavaScript, ES2022 modules | Auditability + longevity (README principle 2); types via JSDoc where they pay off | No TS compiler, no polyfills |
+| Language | Vanilla JavaScript, ES2022 modules | Auditability + longevity (PROJECT principle 2); types via JSDoc where they pay off | No TS compiler, no polyfills |
 | Service worker | `background.type: "module"` | ES imports of `common/*` directly | Top-level event registration only (no async setup before listeners) |
 | Storage | `chrome.storage.local`, one versioned key | Atomic read-modify-write; trivial export | 10 MB quota — fine for 60-day rolling usage |
 | Enforcement | `declarativeNetRequest` **dynamic** rules, `redirect → extensionPath` | Browser-enforced at request boundary; works while SW is dead | `blocked.html` must be web-accessible |
@@ -156,7 +156,7 @@ Key-by-key rationale:
 | `declarativeNetRequestWithHostAccess` | Chosen over `declarativeNetRequest` (the latter triggers an install warning for implicit block-anywhere power). With host-access variant, rules act only on hosts the user granted — which is exactly our consent model. |
 | `optional_host_permissions: ["*://*/*"]` | Declares *nothing granted*, only *what may be asked*. Each `permissions.request` shows its own per-site prompt. Nothing at install. |
 | `contextMenus` | Silent. Powers the right-click "Add this site to Curfew" — the reliable way to learn the current site. |
-| `incognito: "not_allowed"` | Privacy posture: the extension literally cannot run or see incognito. Trade-off (incognito = escape hatch) is already accepted in README §3.5. |
+| `incognito: "not_allowed"` | Privacy posture: the extension literally cannot run or see incognito. Trade-off (incognito = escape hatch) is already accepted in PROJECT §3.5. |
 | `web_accessible_resources` | Required for DNR redirect to an extension path. Exactly one resource exposed; it ships bundled JS only, no remote anything. |
 | no `declarative_net_request` key | We use dynamic rules only; that manifest key is for static rulesets. |
 
@@ -186,11 +186,11 @@ export function capMs(ms, maxMs)
 
 DST/timezone: day key is derived from local wall-clock at call time; the
 midnight alarm is rescheduled after every fire, so DST shifts self-correct.
-Travel across timezones can only shorten "today" — accepted in README §4.2.
+Travel across timezones can only shorten "today" — accepted in PROJECT §4.2.
 
 ### 5.2 `patterns.js` — the pattern grammar (single source of truth)
 
-Grammar (README §3.1): hostname with optional leading `*.`; no port/path.
+Grammar (PROJECT §3.1): hostname with optional leading `*.`; no port/path.
 
 ```js
 /** "x.com" -> {wildcard:false, host:"x.com"};  "*.x.com" -> {wildcard:true,...}
@@ -282,7 +282,7 @@ export function pruneDays(state, keep)
 
 ### 6.1 Schema v1 (full)
 
-Extends README §4.2 — this section is authoritative.
+Extends PROJECT §4.2 — this section is authoritative.
 
 ```jsonc
 {
@@ -537,7 +537,7 @@ forms tested against tricky hosts (`||x.company/` must not match
   relaxation, so the options input is challenge-gated too.
 - Time spent during the unblock window **still counts** and pushes usage
   past the budget — the overshoot is visible in the dashboard (honesty
-  surface, README §3.5).
+  surface, PROJECT §3.5).
 - No per-item cap; the global counter and the dashboard are the feedback
   loop, not a punishment.
 
@@ -663,14 +663,14 @@ from eroding.
 | D1 | DNR dynamic rules for enforcement | `tabs.update` loop; `webNavigation` + redirect | Request-level, SW-sleep-proof, no flash; cost is one web-accessible file |
 | D2 | Per-site optional host grants | `tabs` permission; static `<all_urls>` | Zero install warnings; browser-enforced scoping; revocable; matches the "chosen places" curfew metaphor |
 | D3 | No `webNavigation` permission | listen to committed navigations | DNR + `tabs.onUpdated` cover top-frame needs; fewer permissions |
-| D4 | Vanilla JS + no build | TypeScript, bundlers | Auditability/longevity (README principle 2); JSDoc where useful |
+| D4 | Vanilla JS + no build | TypeScript, bundlers | Auditability/longevity (PROJECT principle 2); JSDoc where useful |
 | D5 | `node --test` | jest/vitest | Zero dependencies; stable runner in Node ≥ 20 |
 | D6 | One versioned storage key | many keys | Atomic read-modify-write; export = copy one value |
 | D7 | Two alarms (tick + midnight) | tick-only with lazy rollover | Exact rollover at local midnight; lazy path kept as backstop |
 | D8 | Grace 10 s, not counted | grace 0 | Accidental navigations must not burn budget; configurable |
 | D9 | Unblock = remove rule + timed re-add | allow-rule override with priority | Fewer live rules; expiry is exact; self-heals on tick |
 | D10 | Persist `session` for SW recovery | in-memory accumulator only | SW death must not double-count or lose count (§8.4) |
-| D11 | `incognito: "not_allowed"` | spanning/split | Cannot see incognito = strongest honest privacy claim; escape hatch accepted (README §3.5) |
+| D11 | `incognito: "not_allowed"` | spanning/split | Cannot see incognito = strongest honest privacy claim; escape hatch accepted (PROJECT §3.5) |
 | D12 | `declarativeNetRequestWithHostAccess` | `declarativeNetRequest` (static warning-free block power) | Rules act only on granted hosts; matches consent model; no install warning |
 
 ---
@@ -694,4 +694,4 @@ from eroding.
 | M0 skeleton | §3, §4, §6, §7, §12.1–12.2 (invariants from day one) |
 | M1 tracker + quota + interstitial | §5, §8, §9, §12.3 (scenarios 1–6, 10) |
 | M2 dashboard + export/import | §6, §10, §12.3 (7–9) |
-| M3 store package | §11.3, README §7 |
+| M3 store package | §11.3, PROJECT §7 |
