@@ -448,6 +448,11 @@ The SW can die any time; correctness must not depend on it staying alive.
   `counting`, it credits `now − lastTickAt` **capped at 6 min** (tick
   interval + slack) to the pattern — this absorbs long sleeps without
   crediting hours of absence — then resumes from `now`.
+- **Every credit path is double-guarded** (a real bug: an overnight tick
+  once credited 600 unmin capped): `capCredits` caps each credit at 6 min,
+  and a credit whose window **spans local midnight is dropped entirely**
+  (phantom time bridging 00:00). Normal ticking never spans midnight —
+  each 5-min tick is credited to its own day.
 - Clock jumps backwards: `elapsedMs` clamps at 0.
 - **Browser restart (`runtime.onStartup`)**: pending credit from the
   previous run is **discarded** — the browser was closed, so crediting it
@@ -631,6 +636,7 @@ from eroding.
 | 4 | budget exhausted while tab stays open | wall lands within ≤ 5 min tick (§8.5) |
 | 5 | stay anyway → counter; window end → wall returns exactly | §9.4 |
 | 6 | system sleep 1 h on a granted site | recovery credits ≤ 6 min, not the sleep (§8.4) |
+| 6b | computer off overnight with the wall open | morning: ≤ 6 min for yesterday, 0 for today, limits refreshed (§8.4, §8.6) |
 | 7 | local midnight with browser open | rules removed, day resets (§8.6) |
 | 8 | browser off across midnight → open browser on site | first tick rolls the day, site open |
 | 9 | revoke grant in chrome://extensions mid-session | rules dropped, tracking stops (§7) |

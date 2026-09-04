@@ -1,6 +1,23 @@
 import { dayKey } from "./time.js";
 import { elapsedMs, capMs } from "./time.js";
 
+/** Hard ceiling for any single credit: a tick or stop event that arrives
+ *  late (sleep, missed alarms, dead SW) may report a huge raw elapsed —
+ *  it is capped so a night can never burn hours of budget. */
+export function capCredits(credits, maxMs) {
+  return (credits ?? [])
+    .map((c) => ({ pattern: c.pattern, ms: capMs(c.ms, maxMs) }))
+    .filter((c) => c.ms > 0);
+}
+
+/** Credits whose window spans midnight are phantom (sleep / powered-off
+ *  time bridging 00:00) — drop them entirely. Normal ticking never spans
+ *  midnight: each 5-min tick is credited to its own day. */
+export function dropIfMidnightCrossed(credits, lastDay, today) {
+  if (lastDay && today && lastDay !== today) return [];
+  return credits;
+}
+
 /**
  * "open" | "closed" for an item given today's usage.
  * closed <=> enabled && masterEnabled && secondsUsed >= budget.

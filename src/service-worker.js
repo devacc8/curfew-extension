@@ -7,6 +7,8 @@ import {
   applyCredit,
   recordUnblock,
   passesLeftToday,
+  capCredits,
+  dropIfMidnightCrossed,
 } from "./common/budget.js";
 import { desiredRules, isOpen } from "./common/rules.js";
 import { pruneDays } from "./common/transfer.js";
@@ -17,7 +19,7 @@ const UNBLOCK_PREFIX = "unblock:";
 const MENU_ID = "curfew-add-site";
 const TICK_MINUTES = 5;
 const IDLE_SECONDS = 60;
-const RECOVERY_CAP_MS = 6 * 60 * 1000;
+const MAX_CREDIT_MS = 6 * 60 * 1000;
 const KEEP_DAYS = 60;
 const BLOCKED_PAGE = "/src/blocked.html";
 
@@ -126,10 +128,13 @@ function onTabUpdated(_tabId, changeInfo) {
   const env = await currentEnv(loaded);
 
   let state = await update((s) => {
+    const lastDay = s.session ? dayKey(s.session.lastTickAt) : null;
     if (fromWake && s.session) {
-      const credit = recoveryCredit(s.session, now, RECOVERY_CAP_MS);
-      if (credit) {
+      const credit = recoveryCredit(s.session, now, MAX_CREDIT_MS);
+      if (credit && lastDay === dayKey(now)) {
         applyCredit(s, credit, dayKey(now));
+      }
+      if (s.session) {
         s.session = { ...s.session, lastTickAt: now, phaseStartedAt: now };
       }
     }
@@ -140,7 +145,10 @@ function onTabUpdated(_tabId, changeInfo) {
       now
     );
     s.session = session;
-    for (const c of credits) applyCredit(s, c, dayKey(now));
+    const safe = dropIfMidnightCrossed(capCredits(credits, MAX_CREDIT_MS), lastDay, dayKey(now));
+    for (const c of safe) {
+      applyCredit(s, c, dayKey(now));
+    }
   }, loaded);
 
   state = await rollover(state);
@@ -256,9 +264,13 @@ async function flushTick() {
   const now = Date.now();
   return update((s) => {
     if (!s.session) return;
+    const lastDay = dayKey(s.session.lastTickAt);
     const { state: session, credits } = transition(s.session, { type: "tick" }, s.config, now);
     s.session = session;
-    for (const c of credits) applyCredit(s, c, dayKey(now));
+    const safe = dropIfMidnightCrossed(capCredits(credits, MAX_CREDIT_MS), lastDay, dayKey(now));
+    for (const c of safe) {
+      applyCredit(s, c, dayKey(now));
+    }
   });
 }
 

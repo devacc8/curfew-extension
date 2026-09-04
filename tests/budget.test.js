@@ -8,6 +8,8 @@ import {
   passesLeftToday,
   transition,
   recoveryCredit,
+  capCredits,
+  dropIfMidnightCrossed,
   ensureDayRow,
   applyCredit,
   recordUnblock,
@@ -259,4 +261,32 @@ test("passesLeftToday enforces the absolute global limit; 0 = no passes", () => 
   assert.equal(passesLeftToday(state, "2026-09-02", 2), 0);
   assert.equal(passesLeftToday(state, "2026-09-02", 0), 0);
   assert.equal(passesLeftToday(state, "2026-09-02", -1), 0);
+});
+
+test("capCredits: a tick arriving after a whole night credits at most the cap", () => {
+  const overnight = [{ pattern: "*.reddit.com", ms: 600 * 60 * 1000 }];
+  const capped = capCredits(overnight, 6 * 60 * 1000);
+  assert.deepEqual(capped, [{ pattern: "*.reddit.com", ms: 6 * 60 * 1000 }]);
+});
+
+test("capCredits keeps normal ticks and drops zero-size credits", () => {
+  const out = capCredits(
+    [{ pattern: "a", ms: 5000 }, { pattern: "b", ms: 0 }],
+    6 * 60 * 1000
+  );
+  assert.deepEqual(out, [{ pattern: "a", ms: 5000 }]);
+});
+
+test("dropIfMidnightCrossed: credits spanning midnight are phantom and dropped", () => {
+  const credits = [{ pattern: "*.reddit.com", ms: 6 * 60 * 1000 }];
+  assert.deepEqual(dropIfMidnightCrossed(credits, "2026-09-02", "2026-09-03"), []);
+});
+
+test("dropIfMidnightCrossed: same-day credits pass through", () => {
+  const credits = [{ pattern: "*.reddit.com", ms: 5000 }];
+  assert.deepEqual(
+    dropIfMidnightCrossed(credits, "2026-09-02", "2026-09-02"),
+    credits
+  );
+  assert.deepEqual(dropIfMidnightCrossed(credits, null, "2026-09-02"), credits);
 });
