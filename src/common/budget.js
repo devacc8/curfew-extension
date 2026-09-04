@@ -47,6 +47,16 @@ export function dailyTotals(state, day) {
   };
 }
 
+/** Effective daily budget for an item: base budget extended by
+ *  unblockMinutes for every pass burned on this pattern today. Passes
+ *  extend the allowance — they never pause the accounting. */
+export function effectiveBudgetSeconds(item, state, day, unblockMinutes) {
+  const passes = state?.usage?.days?.[day]?.unblocks?.[item.pattern] ?? 0;
+  const base = Math.max(0, (item.budgetMinutes ?? 0) * 60);
+  const passSeconds = Math.max(0, unblockMinutes ?? 0) * 60;
+  return base + passes * passSeconds;
+}
+
 /** Total "stay anyway" passes burned today across ALL sites. */
 export function passesUsedToday(state, day) {
   const unblocks = state?.usage?.days?.[day]?.unblocks ?? {};

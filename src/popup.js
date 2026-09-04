@@ -7,7 +7,7 @@ import {
   onChanged,
 } from "./common/storage.js";
 import { parsePattern, patternToString, toMatchOrigins } from "./common/patterns.js";
-import { secondsUsedToday, dailyTotals } from "./common/budget.js";
+import { secondsUsedToday, dailyTotals, effectiveBudgetSeconds } from "./common/budget.js";
 import { isOpen } from "./common/rules.js";
 import { dayKey, previousDayKey } from "./common/time.js";
 import { guarded } from "./protect.js";
@@ -189,7 +189,13 @@ function buildRow(item, state) {
   const now = Date.now();
   const open = isOpen(state, item, dayKey(now), now);
   const used = secondsUsedToday(state, item.pattern);
-  const left = Math.max(0, item.budgetMinutes * 60 - used);
+  const effective = effectiveBudgetSeconds(
+    item,
+    state,
+    dayKey(now),
+    state.config.unblockMinutes
+  );
+  const left = Math.max(0, effective - used);
   const remaining = document.createElement("span");
   remaining.className = "remaining" + (open ? "" : " closed");
   remaining.textContent = open
@@ -201,8 +207,7 @@ function buildRow(item, state) {
   const bar = document.createElement("div");
   bar.className = "bar";
   const fill = document.createElement("i");
-  const ratio =
-    item.budgetMinutes > 0 ? Math.min(1, used / (item.budgetMinutes * 60)) : 1;
+  const ratio = effective > 0 ? Math.min(1, used / effective) : 1;
   fill.style.width = `${Math.round(ratio * 100)}%`;
   bar.append(fill);
 

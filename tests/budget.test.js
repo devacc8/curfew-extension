@@ -10,6 +10,7 @@ import {
   recoveryCredit,
   capCredits,
   dropIfMidnightCrossed,
+  effectiveBudgetSeconds,
   ensureDayRow,
   applyCredit,
   recordUnblock,
@@ -289,4 +290,59 @@ test("dropIfMidnightCrossed: same-day credits pass through", () => {
     credits
   );
   assert.deepEqual(dropIfMidnightCrossed(credits, null, "2026-09-02"), credits);
+});
+
+test("effectiveBudgetSeconds: base budget alone", () => {
+  const state = { usage: { days: { "2026-09-02": { patternSeconds: {}, unblocks: {}, bySite: {} } } } };
+  const item = { budgetMinutes: 30, pattern: "*.reddit.com" };
+  assert.equal(effectiveBudgetSeconds(item, state, "2026-09-02", 15), 30 * 60);
+});
+
+test("effectiveBudgetSeconds: each pass extends by unblockMinutes", () => {
+  const state = {
+    usage: {
+      days: {
+        "2026-09-02": {
+          patternSeconds: {},
+          unblocks: { "*.reddit.com": 2 },
+          bySite: {},
+        },
+      },
+    },
+  };
+  const item = { budgetMinutes: 30, pattern: "*.reddit.com" };
+  assert.equal(effectiveBudgetSeconds(item, state, "2026-09-02", 15), 60 * 60);
+  assert.equal(effectiveBudgetSeconds(item, state, "2026-09-02", 0), 30 * 60);
+});
+
+test("effectiveBudgetSeconds: passes on OTHER patterns do not extend", () => {
+  const state = {
+    usage: {
+      days: {
+        "2026-09-02": {
+          patternSeconds: {},
+          unblocks: { "*.x.com": 5 },
+          bySite: {},
+        },
+      },
+    },
+  };
+  const item = { budgetMinutes: 30, pattern: "*.reddit.com" };
+  assert.equal(effectiveBudgetSeconds(item, state, "2026-09-02", 15), 30 * 60);
+});
+
+test("effectiveBudgetSeconds: zero-budget item with a pass gets pass-only allowance", () => {
+  const state = {
+    usage: {
+      days: {
+        "2026-09-02": {
+          patternSeconds: {},
+          unblocks: { "github.com": 1 },
+          bySite: {},
+        },
+      },
+    },
+  };
+  const item = { budgetMinutes: 0, pattern: "github.com" };
+  assert.equal(effectiveBudgetSeconds(item, state, "2026-09-02", 15), 15 * 60);
 });
