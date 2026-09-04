@@ -29,7 +29,6 @@ let queryState = "unknown";
 chrome.runtime.onInstalled.addListener(() => init().catch((e) => console.error("curfew: init failed", e)));
 chrome.runtime.onStartup.addListener(() => onStartup().catch((e) => console.error("curfew: startup failed", e)));
 chrome.alarms.onAlarm.addListener((alarm) => onAlarm(alarm).catch((e) => console.error("curfew: alarm failed", alarm.name, e)));
-chrome.contextMenus.onClicked.addListener((info, tab) => onContextMenu(info, tab).catch((e) => console.error("curfew: menu handler failed", e)));
 chrome.tabs.onActivated.addListener(runTracker);
 chrome.tabs.onUpdated.addListener(onTabUpdated);
 chrome.windows.onFocusChanged.addListener(runTracker);
@@ -39,7 +38,9 @@ chrome.runtime.onMessage.addListener(onMessage);
 function runTracker() {
   onTrackerEvent().catch((error) => console.error("curfew: tracker failed", error));
 }
-chrome.contextMenus.onClicked.addListener(onContextMenu);
+chrome.contextMenus.onClicked.addListener((info, tab) =>
+  onContextMenu(info, tab).catch((e) => console.error("curfew: menu handler failed", e))
+);
 
 function ensureContextMenu() {
   chrome.contextMenus.removeAll(() => {
@@ -119,15 +120,20 @@ function onTabUpdated(_tabId, changeInfo) {
   if (changeInfo.url || changeInfo.status === "loading") {
     onTrackerEvent().catch((error) => console.error("curfew: tracker failed", error));
   }
-}async function onTrackerEvent() {
+}
+
+async function onTrackerEvent() {
   const now = Date.now();
   const fromWake = !warm;
   warm = true;
 
-  const loaded = await load();
-  const env = await currentEnv(loaded);
+  // 1) async environment probe first (tabs/windows/idle APIs)
+  const probe = await probeEnv();
 
-  let state = await update((s) => {
+  // 2) then load -> update with NO awaits in between: the read-modify-write
+  //    is atomic within JS, so concurrent writes (wall unblock, blockNow)
+  //    can never be clobbered by a stale preloaded state
+  await update((s) => {
     const lastDay = s.session ? dayKey(s.session.lastTickAt) : null;
     if (fromWake && s.session) {
       const credit = recoveryCredit(s.session, now, MAX_CREDIT_MS);
@@ -138,9 +144,10 @@ function onTabUpdated(_tabId, changeInfo) {
         s.session = { ...s.session, lastTickAt: now, phaseStartedAt: now };
       }
     }
+    const pattern = probe.host ? patternForHost(s, probe.host) : null;
     const { state: session, credits } = transition(
       s.session,
-      { type: "environment", pattern: env.pattern, canCount: env.canCount },
+      { type: "environment", pattern, canCount: probe.canCount },
       s.config,
       now
     );
@@ -149,31 +156,29 @@ function onTabUpdated(_tabId, changeInfo) {
     for (const c of safe) {
       applyCredit(s, c, dayKey(now));
     }
-  }, loaded);
+  });
 
-  state = await rollover(state);
+  const state = await load();
+  await rollover(state);
   await reconcile(state);
   await bounceClosedTabs(state);
 }
 
-async function currentEnv(state) {
-  const empty = { pattern: null, canCount: false };
+async function probeEnv() {
   try {
     const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-    if (!tab) return empty;
-    let pattern = null;
-    if (tab.url) {
-      try {
-        pattern = patternForHost(state, new URL(tab.url).hostname);
-      } catch {
-        pattern = null;
-      }
+    if (!tab) return { host: null, canCount: false };
+    let host = null;
+    try {
+      host = tab.url ? new URL(tab.url).hostname : null;
+    } catch {
+      host = null;
     }
     const win = await chrome.windows.get(tab.windowId);
     const idleState = await chrome.idle.queryState(IDLE_SECONDS);
-    return { pattern, canCount: Boolean(win?.focused) && idleState === "active" };
+    return { host, canCount: Boolean(win?.focused) && idleState === "active" };
   } catch {
-    return empty;
+    return { host: null, canCount: false };
   }
 }
 
