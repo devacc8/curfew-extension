@@ -45,10 +45,10 @@
     "message": "Настройки"
   },
   "accessGranted": {
-    "message": "доступ выдан"
+    "message": "отслеживается"
   },
   "accessDenied": {
-    "message": "нет доступа"
+    "message": "не отслеживается"
   },
   "grantAccess": {
     "message": "Выдать доступ"
@@ -184,5 +184,11 @@
   },
   "protectOffMsg": {
     "message": "Защита выключена."
+  },
+  "badgeTitleGranted": {
+    "message": "У Curfew есть доступ Chrome к этому сайту"
+  },
+  "badgeTitleDenied": {
+    "message": "Выдайте доступ, чтобы включить учёт этого сайта"
   }
 }

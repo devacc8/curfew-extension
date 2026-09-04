@@ -1,5 +1,5 @@
 import { parsePattern, toDnrCondition } from "./patterns.js";
-import { decide, secondsUsedToday } from "./budget.js";
+import { decide, secondsUsedToday, unblockWindowActive } from "./budget.js";
 
 /**
  * "open" from the ENFORCEMENT point of view: no rule should exist.
@@ -9,8 +9,7 @@ import { decide, secondsUsedToday } from "./budget.js";
  */
 export function isOpen(state, item, day, nowMs) {
   if (item.access !== "granted") return true;
-  const until = state.runtime.unblockUntil[item.pattern];
-  if (Number.isFinite(until) && until > nowMs) return true;
+  if (unblockWindowActive(state, item.pattern, nowMs)) return true;
   const override = state.runtime.dayOverrides?.[item.pattern];
   if (override && override.day === day) return override.action === "allow";
   return decide(item, secondsUsedToday(state, item.pattern, day), state.config.masterEnabled) === "open";

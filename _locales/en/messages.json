@@ -45,10 +45,10 @@
     "message": "Settings"
   },
   "accessGranted": {
-    "message": "access granted"
+    "message": "tracked"
   },
   "accessDenied": {
-    "message": "no access"
+    "message": "not tracked"
   },
   "grantAccess": {
     "message": "Grant access"
@@ -184,5 +184,11 @@
   },
   "protectOffMsg": {
     "message": "Protection disabled."
+  },
+  "badgeTitleGranted": {
+    "message": "Curfew has Chrome access to this site"
+  },
+  "badgeTitleDenied": {
+    "message": "Grant access to start tracking this site"
   }
 }

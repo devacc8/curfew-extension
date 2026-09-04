@@ -47,6 +47,12 @@ export function dailyTotals(state, day) {
   };
 }
 
+/** Is the 15-minute pass window currently live for a pattern? */
+export function unblockWindowActive(state, pattern, nowMs) {
+  const until = state?.runtime?.unblockUntil?.[pattern];
+  return Number.isFinite(until) && until > nowMs;
+}
+
 /** Effective daily budget for an item: base budget extended by
  *  unblockMinutes for every pass burned on this pattern today. Passes
  *  extend the allowance — they never pause the accounting. */

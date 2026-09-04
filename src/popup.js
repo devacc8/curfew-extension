@@ -7,7 +7,7 @@ import {
   onChanged,
 } from "./common/storage.js";
 import { parsePattern, patternToString, toMatchOrigins } from "./common/patterns.js";
-import { secondsUsedToday, dailyTotals, effectiveBudgetSeconds } from "./common/budget.js";
+import { secondsUsedToday, dailyTotals, effectiveBudgetSeconds, unblockWindowActive } from "./common/budget.js";
 import { isOpen } from "./common/rules.js";
 import { dayKey, previousDayKey } from "./common/time.js";
 import { guarded } from "./protect.js";
@@ -189,12 +189,12 @@ function buildRow(item, state) {
   const now = Date.now();
   const open = isOpen(state, item, dayKey(now), now);
   const used = secondsUsedToday(state, item.pattern);
-  const effective = effectiveBudgetSeconds(
-    item,
-    state,
-    dayKey(now),
-    state.config.unblockMinutes
-  );
+  const windowLive = unblockWindowActive(state, item.pattern, now);
+  // Pass minutes count only while their window is live: after the window
+  // expires the unused remainder is forfeit, so the bar fills to 100%.
+  const effective = windowLive
+    ? effectiveBudgetSeconds(item, state, dayKey(now), state.config.unblockMinutes)
+    : Math.max(0, (item.budgetMinutes ?? 0) * 60);
   const left = Math.max(0, effective - used);
   const remaining = document.createElement("span");
   remaining.className = "remaining" + (open ? "" : " closed");
@@ -205,7 +205,7 @@ function buildRow(item, state) {
   line1.append(enabled, name, remaining);
 
   const bar = document.createElement("div");
-  bar.className = "bar";
+  bar.className = "bar" + (open ? "" : " done");
   const fill = document.createElement("i");
   const ratio = effective > 0 ? Math.min(1, used / effective) : 1;
   fill.style.width = `${Math.round(ratio * 100)}%`;
@@ -217,6 +217,7 @@ function buildRow(item, state) {
   const badge = document.createElement("span");
   badge.className = "badge" + (item.access === "granted" ? " granted" : "");
   badge.textContent = msg(item.access === "granted" ? "accessGranted" : "accessDenied");
+  badge.title = msg(item.access === "granted" ? "badgeTitleGranted" : "badgeTitleDenied");
 
   line2.append(badge);
 
