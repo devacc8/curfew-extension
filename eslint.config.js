@@ -1,4 +1,5 @@
 import js from "@eslint/js";
+import importPlugin from "eslint-plugin-import";
 
 const browserLike = {
   chrome: "readonly",
@@ -45,7 +46,15 @@ export default [
     },
   },
   {
+    files: ["src/**/*.js", "tests/**/*.js"],
+    plugins: { import: importPlugin },
     rules: {
+      "import/named": "error",
+      "import/no-unresolved": ["error", { caseSensitive: true }],
+      "import/export": "error",
+      "import/no-cycle": ["error", { maxDepth: 4 }],
+      "import/no-duplicates": "error",
+      "import/no-useless-path-segments": "error",
       "no-unused-vars": ["error", { args: "none" }],
     },
   },
