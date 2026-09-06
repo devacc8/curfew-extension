@@ -1,7 +1,8 @@
 import { load } from "./common/storage.js";
 import { dayKey } from "./common/time.js";
 import { parsePattern, matchesHost } from "./common/patterns.js";
-import { isOpen, secondsUsedToday, passesLeftToday } from "./common/budget.js";
+import { secondsUsedToday, passesLeftToday } from "./common/budget.js";
+import { isOpen } from "./common/rules.js";
 
 const msg = (key) => chrome.i18n.getMessage(key);
 

@@ -24,8 +24,12 @@ try {
   console.log("extension id:", extensionId);
 
   const page = await browser.newPage();
+  const pageErrors = [];
   page.on("console", (m) => console.log("[page]", m.type(), m.text()));
-  page.on("pageerror", (e) => console.log("[pageerror]", e.message));
+  page.on("pageerror", (e) => {
+    pageErrors.push(e.message);
+    console.log("[pageerror]", e.message);
+  });
 
   await page.goto(`chrome-extension://${extensionId}/src/options.html`, {
     waitUntil: "networkidle0",
@@ -118,6 +122,26 @@ try {
   );
   console.log("settings final:", JSON.stringify(final));
   console.log(final?.protection === null ? "PASS: protection disabled" : "FAIL: still enabled");
+
+  // the wall page must load with zero script errors (module imports etc.)
+  await page.goto(`chrome-extension://${extensionId}/src/blocked.html?domain=github.com`, {
+    waitUntil: "networkidle0",
+  });
+  await sleep(300);
+  const wallState = await page.evaluate(() => ({
+    domain: document.getElementById("domain")?.textContent,
+    hasStay: Boolean(document.getElementById("stay")),
+  }));
+  console.log("wall:", JSON.stringify(wallState));
+  if (!wallState.hasStay || !wallState.domain) {
+    console.log("FAIL: wall page did not initialize");
+    process.exitCode = 1;
+  } else if (pageErrors.length) {
+    console.log("FAIL: page errors:", pageErrors.join(" | "));
+    process.exitCode = 1;
+  } else {
+    console.log("PASS: wall page initialized cleanly");
+  }
 } finally {
   await browser.close();
 }
