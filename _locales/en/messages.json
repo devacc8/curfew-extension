@@ -190,5 +190,8 @@
   },
   "badgeTitleDenied": {
     "message": "Grant access to start tracking this site"
+  },
+  "curfewLifted": {
+    "message": "The curfew was lifted — click the address above to continue."
   }
 }

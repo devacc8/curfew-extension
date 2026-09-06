@@ -8,6 +8,8 @@ const browserLike = {
   location: "readonly",
   setTimeout: "readonly",
   clearTimeout: "readonly",
+  setInterval: "readonly",
+  clearInterval: "readonly",
   URL: "readonly",
   URLSearchParams: "readonly",
   Blob: "readonly",
