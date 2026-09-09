@@ -123,6 +123,182 @@ try {
   console.log("settings final:", JSON.stringify(final));
   console.log(final?.protection === null ? "PASS: protection disabled" : "FAIL: still enabled");
 
+  // Burned passes must extend the ENFORCEMENT budget, not just the popup's
+  // label. Drive the real service worker and read its DNR projection: with
+  // 2 passes a 25-min budget is open at 25 min used; without them it closes.
+  const passRules = await page.evaluate(async () => {
+    const { dayKey } = await import(chrome.runtime.getURL("src/common/time.js"));
+    const day = dayKey();
+    const item = {
+      id: "e2e-pass",
+      ruleId: 9001,
+      pattern: "e2e-curfew.test",
+      budgetMinutes: 25,
+      enabled: true,
+      access: "granted",
+    };
+    const base = {
+      schema: 1,
+      config: {
+        masterEnabled: true,
+        graceSeconds: 10,
+        unblockMinutes: 15,
+        unblockPassesPerDay: 3,
+        items: [item],
+      },
+      usage: {
+        days: {
+          [day]: {
+            patternSeconds: { "e2e-curfew.test": 25 * 60 },
+            unblocks: { "e2e-curfew.test": 2 },
+            bySite: {},
+          },
+        },
+      },
+      session: null,
+      runtime: { unblockUntil: {}, dayOverrides: {}, lastRolloverDay: day },
+      settings: { version: 1, itemSeq: 9001, protection: null },
+    };
+    const write = (state) =>
+      new Promise((res) => chrome.storage.local.set({ curfew: state }, res));
+    const hasRule = async () =>
+      (await chrome.declarativeNetRequest.getDynamicRules()).some((r) => r.id === 9001);
+
+    await write(base);
+    await chrome.runtime.sendMessage({ type: "flush" });
+    const ruleWithPasses = await hasRule();
+
+    const noPasses = JSON.parse(JSON.stringify(base));
+    noPasses.usage.days[day].unblocks = {};
+    await write(noPasses);
+    await chrome.runtime.sendMessage({ type: "flush" });
+    const ruleWithoutPasses = await hasRule();
+
+    return { ruleWithPasses, ruleWithoutPasses };
+  });
+  console.log("passes vs enforcement:", JSON.stringify(passRules));
+  if (passRules.ruleWithPasses || !passRules.ruleWithoutPasses) {
+    console.log("FAIL: burned passes do not extend the enforced budget");
+    process.exitCode = 1;
+  } else {
+    console.log("PASS: burned passes extend the enforced budget");
+  }
+
+  // The "frozen at the last minute" bug: a counting session whose last flush
+  // is 2 min old must be credited when the dashboard/wall flushes on open —
+  // otherwise the counter sits still and the wall never lands.
+  const staleFlush = await page.evaluate(async () => {
+    const { dayKey } = await import(chrome.runtime.getURL("src/common/time.js"));
+    const day = dayKey();
+    const now = Date.now();
+    const item = {
+      id: "e2e-stale",
+      ruleId: 9002,
+      pattern: "e2e-stale.test",
+      budgetMinutes: 25,
+      enabled: true,
+      access: "granted",
+    };
+    const state = {
+      schema: 1,
+      config: {
+        masterEnabled: true,
+        graceSeconds: 10,
+        unblockMinutes: 15,
+        unblockPassesPerDay: 3,
+        items: [item],
+      },
+      usage: {
+        days: {
+          [day]: {
+            patternSeconds: { "e2e-stale.test": 24 * 60 },
+            unblocks: {},
+            bySite: {},
+          },
+        },
+      },
+      session: {
+        pattern: "e2e-stale.test",
+        phase: "counting",
+        phaseStartedAt: now - 120_000,
+        lastTickAt: now - 120_000,
+      },
+      runtime: { unblockUntil: {}, dayOverrides: {}, lastRolloverDay: day },
+      settings: { version: 1, itemSeq: 9002, protection: null },
+    };
+    await new Promise((res) => chrome.storage.local.set({ curfew: state }, res));
+    // exactly what popup.js and blocked.js now send on open
+    await chrome.runtime.sendMessage({ type: "flush" });
+    const after = await new Promise((res) =>
+      chrome.storage.local.get("curfew", (d) => res(d.curfew))
+    );
+    const rules = await chrome.declarativeNetRequest.getDynamicRules();
+    return {
+      usedSeconds: after?.usage?.days?.[day]?.patternSeconds?.["e2e-stale.test"] ?? 0,
+      hasRule: rules.some((r) => r.id === 9002),
+    };
+  });
+  console.log("stale-session flush:", JSON.stringify(staleFlush));
+  if (staleFlush.usedSeconds < 25 * 60 || !staleFlush.hasRule) {
+    console.log("FAIL: flushing a stale session did not credit time / land the wall");
+    process.exitCode = 1;
+  } else {
+    console.log("PASS: stale session flushes into the budget and the block lands");
+  }
+
+  // A second "stay anyway" from a stale wall must not burn a second pass.
+  const doubleBurn = await page.evaluate(async () => {
+    const { dayKey } = await import(chrome.runtime.getURL("src/common/time.js"));
+    const day = dayKey();
+    const item = {
+      id: "e2e-burn",
+      ruleId: 9003,
+      pattern: "e2e-burn.test",
+      budgetMinutes: 0, // closed immediately: every request starts at the wall
+      enabled: true,
+      access: "granted",
+    };
+    const state = {
+      schema: 1,
+      config: {
+        masterEnabled: true,
+        graceSeconds: 10,
+        unblockMinutes: 15,
+        unblockPassesPerDay: 3,
+        items: [item],
+      },
+      usage: { days: { [day]: { patternSeconds: {}, unblocks: {}, bySite: {} } } },
+      session: null,
+      runtime: { unblockUntil: {}, dayOverrides: {}, lastRolloverDay: day },
+      settings: { version: 1, itemSeq: 9003, protection: null },
+    };
+    await new Promise((res) => chrome.storage.local.set({ curfew: state }, res));
+
+    const first = await chrome.runtime.sendMessage({
+      type: "unblock:request",
+      itemId: item.id,
+    });
+    const second = await chrome.runtime.sendMessage({
+      type: "unblock:request",
+      itemId: item.id,
+    });
+    const after = await new Promise((res) =>
+      chrome.storage.local.get("curfew", (d) => res(d.curfew))
+    );
+    return {
+      firstOk: Boolean(first?.ok),
+      secondOk: Boolean(second?.ok),
+      passes: after?.usage?.days?.[day]?.unblocks?.["e2e-burn.test"] ?? 0,
+    };
+  });
+  console.log("double stay-anyway:", JSON.stringify(doubleBurn));
+  if (!doubleBurn.firstOk || !doubleBurn.secondOk || doubleBurn.passes !== 1) {
+    console.log("FAIL: a stale wall burned more than one pass");
+    process.exitCode = 1;
+  } else {
+    console.log("PASS: a stale wall burns exactly one pass");
+  }
+
   // the wall page must load with zero script errors (module imports etc.)
   await page.goto(`chrome-extension://${extensionId}/src/blocked.html?domain=github.com`, {
     waitUntil: "networkidle0",

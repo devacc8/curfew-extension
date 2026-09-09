@@ -6,11 +6,10 @@ import {
   recoveryCredit,
   applyCredit,
   recordUnblock,
-  passesLeftToday,
   capCredits,
   dropIfMidnightCrossed,
 } from "./common/budget.js";
-import { desiredRules, isOpen } from "./common/rules.js";
+import { desiredRules, isOpen, resolvePassRequest } from "./common/rules.js";
 import { pruneDays } from "./common/transfer.js";
 
 const TICK = "tick";
@@ -26,9 +25,33 @@ const BLOCKED_PAGE = "/src/blocked.html";
 let warm = false;
 let queryState = "unknown";
 
-chrome.runtime.onInstalled.addListener(() => init().catch((e) => console.error("curfew: init failed", e)));
-chrome.runtime.onStartup.addListener(() => onStartup().catch((e) => console.error("curfew: startup failed", e)));
-chrome.alarms.onAlarm.addListener((alarm) => onAlarm(alarm).catch((e) => console.error("curfew: alarm failed", alarm.name, e)));
+/**
+ * Every state mutation runs through this one promise chain. chrome.storage
+ * has no transactions, so two overlapping read-modify-write cycles (a tick
+ * alarm racing an environment event) would otherwise each read the same
+ * snapshot and the later write would silently drop the other's credit —
+ * exactly the "time stops counting" failure. Entry points are serialized;
+ * nested calls (onAlarm -> flushTick) stay plain to avoid deadlock.
+ */
+let mutationQueue = Promise.resolve();
+function serial(task) {
+  const next = mutationQueue.then(task, task);
+  mutationQueue = next.then(
+    () => {},
+    () => {}
+  );
+  return next;
+}
+
+chrome.runtime.onInstalled.addListener(() =>
+  serial(init).catch((e) => console.error("curfew: init failed", e))
+);
+chrome.runtime.onStartup.addListener(() =>
+  serial(onStartup).catch((e) => console.error("curfew: startup failed", e))
+);
+chrome.alarms.onAlarm.addListener((alarm) =>
+  serial(() => onAlarm(alarm)).catch((e) => console.error("curfew: alarm failed", alarm.name, e))
+);
 chrome.tabs.onActivated.addListener(runTracker);
 chrome.tabs.onUpdated.addListener(onTabUpdated);
 chrome.windows.onFocusChanged.addListener(runTracker);
@@ -36,10 +59,12 @@ chrome.idle.onStateChanged.addListener(runTracker);
 chrome.runtime.onMessage.addListener(onMessage);
 
 function runTracker() {
-  onTrackerEvent().catch((error) => console.error("curfew: tracker failed", error));
+  serial(onTrackerEvent).catch((error) => console.error("curfew: tracker failed", error));
 }
 chrome.contextMenus.onClicked.addListener((info, tab) =>
-  onContextMenu(info, tab).catch((e) => console.error("curfew: menu handler failed", e))
+  serial(() => onContextMenu(info, tab)).catch((e) =>
+    console.error("curfew: menu handler failed", e)
+  )
 );
 
 function ensureContextMenu() {
@@ -268,13 +293,19 @@ async function bounceClosedTabs(state) {
 async function flushTick() {
   const now = Date.now();
   return update((s) => {
-    if (!s.session) return;
-    const lastDay = dayKey(s.session.lastTickAt);
-    const { state: session, credits } = transition(s.session, { type: "tick" }, s.config, now);
-    s.session = session;
-    const safe = dropIfMidnightCrossed(capCredits(credits, MAX_CREDIT_MS), lastDay, dayKey(now));
-    for (const c of safe) {
-      applyCredit(s, c, dayKey(now));
+    if (s.session) {
+      const lastDay = dayKey(s.session.lastTickAt);
+      const { state: session, credits } = transition(s.session, { type: "tick" }, s.config, now);
+      s.session = session;
+      const safe = dropIfMidnightCrossed(capCredits(credits, MAX_CREDIT_MS), lastDay, dayKey(now));
+      for (const c of safe) {
+        applyCredit(s, c, dayKey(now));
+      }
+    }
+    // Expired unblock windows are garbage: the one-shot alarm re-adds the
+    // rule, and isOpen already ignores them, so only storage hygiene is left.
+    for (const [pattern, until] of Object.entries(s.runtime.unblockUntil)) {
+      if (!(until > now)) delete s.runtime.unblockUntil[pattern];
     }
   });
 }
@@ -303,15 +334,24 @@ async function onAlarm(alarm) {
 }
 
 function onMessage(message, _sender, sendResponse) {
-  (async () => {
+  serial(async () => {
     try {
       if (message?.type === "unblock:request") {
         const loaded = await load();
         const item = loaded.config.items.find((i) => i.id === message.itemId);
         if (!item || item.access !== "granted") return sendResponse({ ok: false });
         const day = dayKey(Date.now());
-        const left = passesLeftToday(loaded, day, loaded.config.unblockPassesPerDay);
-        if (left <= 0) return sendResponse({ ok: false, reason: "limit" });
+        const decision = resolvePassRequest(
+          loaded,
+          item,
+          day,
+          Date.now(),
+          loaded.config.unblockPassesPerDay
+        );
+        if (!decision.ok) return sendResponse({ ok: false, reason: decision.reason });
+        // A stale wall asking to "stay" on an already-open site is a no-op:
+        // no pass is burned, the live window (if any) is echoed back.
+        if (!decision.burn) return sendResponse({ ok: true, until: decision.until });
         const until = Date.now() + loaded.config.unblockMinutes * 60_000;
         const state = await update((s) => {
           s.runtime.unblockUntil[item.pattern] = until;
@@ -344,6 +384,6 @@ function onMessage(message, _sender, sendResponse) {
     } catch {
       sendResponse({ ok: false });
     }
-  })();
+  }).catch((e) => console.error("curfew: message handler failed", e));
   return true;
 }

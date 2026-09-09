@@ -468,6 +468,16 @@ hosts — exactly the ones we track), recomputes `decide()` per item, and if an
 open tab's budget is exhausted: installs the DNR rule (§9.2) and redirects
 that tab via `chrome.tabs.update` (no permission required per tabs API).
 
+The 5-min tick alone leaves the dashboard stale for up to 5 minutes, which
+reads as a frozen counter ("stuck at 1 min") while the wall is already due.
+So every surface that shows a number **flushes first**: `popup.js` and
+`blocked.js` send `{type: "flush"}` on open, which runs the same
+`flushTick` → `reconcile` → `bounceClosedTabs` path as the tick. The counter
+the user reads and the rule the browser enforces are therefore the same
+snapshot. All state mutations in the SW are serialized through one promise
+chain (`serial()`), because `chrome.storage` has no transactions and two
+overlapping read-modify-write cycles would otherwise drop a credit.
+
 ### 8.6 Day rollover
 
 Two alarms:
@@ -536,6 +546,10 @@ forms tested against tricky hosts (`||x.company/` must not match
   Pressing sets `runtime.unblockUntil[pattern] = now + unblockMinutes`,
   increments today's `unblocks[pattern]`, removes the rule, schedules the
   re-add alarm.
+- **The request is idempotent while the site is open** (`resolvePassRequest`):
+  a stale wall tab or a double click on a site that is already open (live
+  window, allow override, or allowance left) returns `ok` **without burning
+  a pass**. Only a genuinely closed site spends one.
 - **Precedence: an active unblock window beats a "block" day override.**
   Otherwise "stay anyway" would be dead after "Block now" (a real bug
   found in testing: the counter grew 4× while the wall never lifted).
@@ -545,6 +559,14 @@ forms tested against tricky hosts (`||x.company/` must not match
 - Time spent during the unblock window **still counts** and pushes usage
   past the budget — the overshoot is visible in the dashboard (honesty
   surface, PROJECT §3.5).
+- **A pass extends the day's allowance, not just the window.** `isOpen()`
+  enforces the *effective* budget — `budgetMinutes + passes × unblockMinutes`
+  (`effectiveBudgetSeconds`, via `passBonusSeconds`) — so a burned pass keeps
+  the site open after its 15-minute window expires, until the extended
+  allowance is actually spent. The popup, the bar and the wall show that same
+  effective budget (a real bug: enforcement used the base budget while the
+  dashboard promised the extended one, so two passes on a 25-min limit showed
+  ~31 min left and then closed on the spot).
 - No per-item cap; the global counter and the dashboard are the feedback
   loop, not a punishment.
 

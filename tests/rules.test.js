@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { isOpen, desiredRules } from "../src/common/rules.js";
+import { isOpen, desiredRules, resolvePassRequest } from "../src/common/rules.js";
+import { passesUsedToday } from "../src/common/budget.js";
 
 const DAY = "2026-09-02";
 const NOW = 1000;
@@ -9,6 +10,7 @@ function state(over = {}) {
   return {
     config: {
       masterEnabled: true,
+      unblockMinutes: 15,
       items: [
         {
           id: "u1",
@@ -44,6 +46,54 @@ test("isOpen: open while under budget", () => {
 
 test("isOpen: closed at the budget boundary", () => {
   const s = { ...state(), ...used(30 * 60) };
+  assert.equal(isOpen(s, s.config.items[0], DAY, NOW), false);
+});
+
+test("isOpen: burned passes extend the enforcement budget", () => {
+  const s = { ...state(), ...used(30 * 60) };
+  s.usage.days[DAY].unblocks["*.reddit.com"] = 2; // 30 min base + 2 × 15 = 60
+  assert.equal(isOpen(s, s.config.items[0], DAY, NOW), true);
+
+  s.usage.days[DAY].patternSeconds["*.reddit.com"] = 60 * 60 - 1;
+  assert.equal(isOpen(s, s.config.items[0], DAY, NOW), true);
+
+  s.usage.days[DAY].patternSeconds["*.reddit.com"] = 60 * 60;
+  assert.equal(isOpen(s, s.config.items[0], DAY, NOW), false);
+});
+
+test("isOpen: passes on another site never extend this one", () => {
+  const s = { ...state(), ...used(30 * 60) };
+  s.usage.days[DAY].unblocks["*.x.com"] = 5;
+  assert.equal(isOpen(s, s.config.items[0], DAY, NOW), false);
+});
+
+test("isOpen: passes from another day never extend today", () => {
+  const s = { ...state(), ...used(30 * 60) };
+  s.usage.days["2026-09-01"] = {
+    patternSeconds: {},
+    unblocks: { "*.reddit.com": 3 },
+    bySite: {},
+  };
+  assert.equal(isOpen(s, s.config.items[0], DAY, NOW), false);
+});
+
+test("isOpen: a pass opens a zero-budget item for exactly one pass", () => {
+  const s = state({
+    config: {
+      masterEnabled: true,
+      unblockMinutes: 15,
+      items: [{ ...state().config.items[0], budgetMinutes: 0 }],
+    },
+  });
+  s.usage.days = {
+    [DAY]: { patternSeconds: {}, unblocks: {}, bySite: {} },
+  };
+  assert.equal(isOpen(s, s.config.items[0], DAY, NOW), false);
+
+  s.usage.days[DAY].unblocks["*.reddit.com"] = 1;
+  assert.equal(isOpen(s, s.config.items[0], DAY, NOW), true);
+
+  s.usage.days[DAY].patternSeconds["*.reddit.com"] = 15 * 60;
   assert.equal(isOpen(s, s.config.items[0], DAY, NOW), false);
 });
 
@@ -156,5 +206,53 @@ test("desiredRules: exact pattern maps to a regexFilter condition", () => {
   assert.deepEqual(rules[0].condition, {
     regexFilter: "^https?://x\\.com/",
     resourceTypes: ["main_frame"],
+  });
+});
+
+test("resolvePassRequest: an already-open site never burns a pass", () => {
+  const s = state();
+  const item = s.config.items[0];
+  assert.deepEqual(resolvePassRequest(s, item, DAY, NOW, 3), {
+    ok: true,
+    burn: false,
+    until: undefined,
+  });
+  assert.equal(passesUsedToday(s, DAY), 0);
+});
+
+test("resolvePassRequest: a live window is idempotent and echoes its deadline", () => {
+  const s = { ...state(), ...used(30 * 60) };
+  s.runtime.unblockUntil["*.reddit.com"] = NOW + 60_000;
+  assert.deepEqual(resolvePassRequest(s, s.config.items[0], DAY, NOW, 3), {
+    ok: true,
+    burn: false,
+    until: NOW + 60_000,
+  });
+});
+
+test("resolvePassRequest: a closed site with passes left burns exactly one", () => {
+  const s = { ...state(), ...used(30 * 60) };
+  assert.deepEqual(resolvePassRequest(s, s.config.items[0], DAY, NOW, 3), {
+    ok: true,
+    burn: true,
+  });
+});
+
+test("resolvePassRequest: a closed site with no passes left is refused", () => {
+  const s = { ...state(), ...used(30 * 60) };
+  s.usage.days[DAY].unblocks["*.x.com"] = 3; // global limit already spent
+  assert.deepEqual(resolvePassRequest(s, s.config.items[0], DAY, NOW, 3), {
+    ok: false,
+    reason: "limit",
+  });
+});
+
+test("resolvePassRequest: an allow override makes the request a no-op", () => {
+  const s = { ...state(), ...used(30 * 60) };
+  s.runtime.dayOverrides["*.reddit.com"] = { day: DAY, action: "allow" };
+  assert.deepEqual(resolvePassRequest(s, s.config.items[0], DAY, NOW, 3), {
+    ok: true,
+    burn: false,
+    until: undefined,
   });
 });

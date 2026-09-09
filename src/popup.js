@@ -7,7 +7,7 @@ import {
   onChanged,
 } from "./common/storage.js";
 import { parsePattern, patternToString, toMatchOrigins } from "./common/patterns.js";
-import { secondsUsedToday, dailyTotals, effectiveBudgetSeconds, unblockWindowActive } from "./common/budget.js";
+import { secondsUsedToday, dailyTotals, effectiveBudgetSeconds } from "./common/budget.js";
 import { isOpen } from "./common/rules.js";
 import { dayKey, previousDayKey } from "./common/time.js";
 import { guarded } from "./protect.js";
@@ -50,6 +50,15 @@ function rejectPattern() {
 
 function formatDuration(sec) {
   const m = Math.round(sec / 60);
+  if (m < 60) return `${m} ${msg("minutesShort")}`;
+  return `${Math.floor(m / 60)}h ${m % 60}${msg("minutesShort")}`;
+}
+
+/** Remaining time rounds UP: "1 min left" must mean the wall is not due yet,
+ *  never "somewhere between 30 and 89 seconds left" (Math.round showed 1 min
+ *  with less than a minute on the clock, which read as a frozen counter). */
+function formatRemaining(sec) {
+  const m = Math.ceil(sec / 60);
   if (m < 60) return `${m} ${msg("minutesShort")}`;
   return `${Math.floor(m / 60)}h ${m % 60}${msg("minutesShort")}`;
 }
@@ -108,12 +117,16 @@ async function syncAccessFlags() {
         });
         return [item.id, ok];
       } catch {
-        return [item.id, false];
+        // A thrown permissions call is "unknown", not "denied": forcing
+        // denied would silently disable tracking AND enforcement for a site
+        // that is still granted (the wall would never come).
+        return [item.id, null];
       }
     })
   );
   await update((s) => {
     for (const [id, ok] of checks) {
+      if (ok === null) continue;
       const it = s.config.items.find((i) => i.id === id);
       if (it) it.access = ok ? "granted" : "denied";
     }
@@ -189,17 +202,19 @@ function buildRow(item, state) {
   const now = Date.now();
   const open = isOpen(state, item, dayKey(now), now);
   const used = secondsUsedToday(state, item.pattern);
-  const windowLive = unblockWindowActive(state, item.pattern, now);
-  // Pass minutes count only while their window is live: after the window
-  // expires the unused remainder is forfeit, so the bar fills to 100%.
-  const effective = windowLive
-    ? effectiveBudgetSeconds(item, state, dayKey(now), state.config.unblockMinutes)
-    : Math.max(0, (item.budgetMinutes ?? 0) * 60);
+  // The effective budget is what enforcement uses (base + 15 min per burned
+  // pass), so the bar and the remaining label must show the same number.
+  const effective = effectiveBudgetSeconds(
+    item,
+    state,
+    dayKey(now),
+    state.config.unblockMinutes
+  );
   const left = Math.max(0, effective - used);
   const remaining = document.createElement("span");
   remaining.className = "remaining" + (open ? "" : " closed");
   remaining.textContent = open
-    ? `${formatDuration(left)} ${msg("leftSuffix")}`
+    ? `${formatRemaining(left)} ${msg("leftSuffix")}`
     : msg("closedLabel");
 
   line1.append(enabled, name, remaining);
@@ -225,7 +240,9 @@ function buildRow(item, state) {
   if (passes > 0) {
     const chip = document.createElement("span");
     chip.className = "badge passes";
-    chip.textContent = `${passes}×15${msg("minutesShort")}`;
+    // Read the configured pass length: a hardcoded 15 would lie the moment
+    // unblockMinutes changes (it is a stored config value, not a constant).
+    chip.textContent = `${passes}×${state.config.unblockMinutes}${msg("minutesShort")}`;
     chip.title = msg("passesTodayLabel");
     line2.append(chip);
   }
@@ -324,4 +341,11 @@ function scheduleRender() {
 onChanged(scheduleRender);
 applyI18n();
 render();
-syncAccessFlags().then(scheduleRender);
+// Credit whatever the SW has not flushed yet (its tick is 5 min), then
+// repaint: without this the dashboard shows a frozen "1 min left" while
+// the wall is actually due — the freeze the users kept reporting.
+// The access-flag write is chained AFTER the flush on purpose: two
+// concurrent whole-state writes would clobber each other's fields.
+send("flush")
+  .then(() => syncAccessFlags())
+  .finally(scheduleRender);
