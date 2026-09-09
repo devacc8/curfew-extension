@@ -92,6 +92,7 @@ curfew-extension/
       time.js                 # day key, midnight math, clamps (pure)
       patterns.js             # pattern grammar: parse/match/mappings (pure)
       budget.js               # decide, state machine, usage rows, passes (pure)
+      tracking.js             # the accounting entry points, clock-injected (pure)
       ops.js                  # the mutation vocabulary the SW applies (pure)
       rules.js                # desired DNR rule set (pure projection)
       transfer.js             # export/import envelope, day pruning (pure)
@@ -295,6 +296,25 @@ export function decodeExport(text)   // -> { ok, state } | { ok: false, error }
 /** Keep only the newest `keep` day rows (rollover + import retention). */
 export function pruneDays(state, keep)
 ```
+
+### 5.8 `tracking.js` — the accounting entry points
+
+```js
+/** One environment observation: wake recovery + transition + credit guards. */
+export function trackEnvironment(state, event, nowMs, { fromWake, maxCreditMs })
+/** One tick/flush of the accruing session. */
+export function trackTick(state, nowMs, { maxCreditMs })
+/** Drop expired pass windows. */
+export function pruneRuntime(state, nowMs)
+/** Close the local day once (prune + clear runtime). */
+export function applyRollover(state, nowMs, keepDays)
+```
+
+Clock-injected and pure: the service worker owns the browser APIs and passes
+`Date.now()`, so a whole day — worker deaths, ticks, midnight, tab switches —
+is replayed in `tests/tracking.test.js` without a browser. Each entry point
+mutates the document (the `update()` mutator convention) and RETURNS the
+credits that landed, so the tests assert the accounting instead of guessing.
 
 ---
 

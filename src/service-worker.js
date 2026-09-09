@@ -1,19 +1,15 @@
 import { load, update, upsertItem } from "./common/storage.js";
 import { dayKey, nextLocalMidnight } from "./common/time.js";
 import { parsePattern, matchesHost } from "./common/patterns.js";
+import { recordUnblock, nextExhaustionAt } from "./common/budget.js";
 import {
-  transition,
-  promoteGrace,
-  recoveryCredit,
-  applyCredit,
-  recordUnblock,
-  capCredits,
-  dropIfMidnightCrossed,
-  nextExhaustionAt,
-} from "./common/budget.js";
+  trackEnvironment,
+  trackTick,
+  pruneRuntime,
+  applyRollover,
+} from "./common/tracking.js";
 import { desiredRules, isOpen, resolvePassRequest } from "./common/rules.js";
 import { applyOp } from "./common/ops.js";
-import { pruneDays } from "./common/transfer.js";
 
 const TICK = "tick";
 const MIDNIGHT = "midnight";
@@ -163,31 +159,13 @@ async function onTrackerEvent() {
   //    is atomic within JS, so concurrent writes (wall unblock, blockNow)
   //    can never be clobbered by a stale preloaded state
   await update((s) => {
-    const lastDay = s.session ? dayKey(s.session.lastTickAt) : null;
-    if (fromWake && s.session) {
-      // Promote first: a visit that outlived its grace window while the
-      // worker was dead must credit its post-grace part, not vanish whole.
-      s.session = promoteGrace(s.session, s.config, now);
-      const credit = recoveryCredit(s.session, now, MAX_CREDIT_MS);
-      if (credit && lastDay === dayKey(now)) {
-        applyCredit(s, credit, dayKey(now));
-      }
-      if (s.session) {
-        s.session = { ...s.session, lastTickAt: now, phaseStartedAt: now };
-      }
-    }
     const pattern = probe.host ? patternForHost(s, probe.host) : null;
-    const { state: session, credits } = transition(
-      s.session,
+    trackEnvironment(
+      s,
       { type: "environment", pattern, canCount: probe.canCount },
-      s.config,
-      now
+      now,
+      { fromWake, maxCreditMs: MAX_CREDIT_MS }
     );
-    s.session = session;
-    const safe = dropIfMidnightCrossed(capCredits(credits, MAX_CREDIT_MS), lastDay, dayKey(now));
-    for (const c of safe) {
-      applyCredit(s, c, dayKey(now));
-    }
   });
 
   const state = await load();
@@ -317,31 +295,15 @@ async function bounceClosedTabs(state) {
 async function flushTick() {
   const now = Date.now();
   return update((s) => {
-    if (s.session) {
-      const lastDay = dayKey(s.session.lastTickAt);
-      const { state: session, credits } = transition(s.session, { type: "tick" }, s.config, now);
-      s.session = session;
-      const safe = dropIfMidnightCrossed(capCredits(credits, MAX_CREDIT_MS), lastDay, dayKey(now));
-      for (const c of safe) {
-        applyCredit(s, c, dayKey(now));
-      }
-    }
-    // Expired unblock windows are garbage: the one-shot alarm re-adds the
-    // rule, and isOpen already ignores them, so only storage hygiene is left.
-    for (const [pattern, until] of Object.entries(s.runtime.unblockUntil)) {
-      if (!(until > now)) delete s.runtime.unblockUntil[pattern];
-    }
+    trackTick(s, now, { maxCreditMs: MAX_CREDIT_MS });
+    pruneRuntime(s, now);
   });
 }
 
 async function rollover(state) {
-  const today = dayKey(Date.now());
-  if (state.runtime.lastRolloverDay === today) return state;
+  const now = Date.now();
   return update((s) => {
-    pruneDays(s, KEEP_DAYS);
-    s.runtime.unblockUntil = {};
-    s.runtime.dayOverrides = {};
-    s.runtime.lastRolloverDay = today;
+    applyRollover(s, now, KEEP_DAYS);
   }, state);
 }
 
