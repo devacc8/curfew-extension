@@ -20,10 +20,151 @@ function defaults() {
 
 const MIGRATIONS = {};
 
+const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Finite number or the fallback — the shape guard for every numeric field. */
+function finiteNumber(value, fallback) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+/** pattern -> non-negative finite number, dropping anything else. */
+function numberMap(raw) {
+  const out = {};
+  if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+    for (const [key, value] of Object.entries(raw)) {
+      const n = Number(value);
+      if (Number.isFinite(n) && n >= 0) out[key] = n;
+    }
+  }
+  return out;
+}
+
+/** Usage rows: only real day keys with numeric counters survive. A string
+ *  counter would otherwise CONCATENATE in applyCredit ("600" + 0.5). */
+function sanitizeDays(raw) {
+  const out = {};
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
+  for (const [day, row] of Object.entries(raw)) {
+    if (!DAY_RE.test(day) || !row || typeof row !== "object") continue;
+    out[day] = {
+      patternSeconds: numberMap(row.patternSeconds),
+      unblocks: numberMap(row.unblocks),
+      bySite: numberMap(row.bySite),
+    };
+  }
+  return out;
+}
+
+/** A tracking session must be structurally sound or it is dropped: the
+ *  state machine indexes every field unconditionally. */
+function sanitizeSession(raw) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  if (typeof raw.pattern !== "string" || raw.pattern.length === 0) return null;
+  if (raw.phase !== "grace" && raw.phase !== "counting") return null;
+  const phaseStartedAt = finiteNumber(raw.phaseStartedAt, null);
+  const lastTickAt = finiteNumber(raw.lastTickAt, null);
+  if (phaseStartedAt === null || lastTickAt === null) return null;
+  return { pattern: raw.pattern, phase: raw.phase, phaseStartedAt, lastTickAt };
+}
+
+function sanitizeOverrides(raw) {
+  const out = {};
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
+  for (const [pattern, entry] of Object.entries(raw)) {
+    if (!entry || typeof entry !== "object") continue;
+    if (typeof entry.day !== "string") continue;
+    if (entry.action !== "allow" && entry.action !== "block") continue;
+    out[pattern] = { day: entry.day, action: entry.action };
+  }
+  return out;
+}
+
+/** Items: an array of objects with a usable pattern, unique pattern AND
+ *  unique ruleId (a duplicate DNR id makes updateDynamicRules reject the
+ *  whole batch). Unknown/future fields ride along untouched. */
+function sanitizeItems(raw, settings) {
+  const out = [];
+  const patterns = new Set();
+  const ruleIds = new Set();
+  for (const entry of Array.isArray(raw) ? raw : []) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
+    if (typeof entry.pattern !== "string" || entry.pattern.length === 0) continue;
+    if (patterns.has(entry.pattern)) continue;
+    patterns.add(entry.pattern);
+    let ruleId =
+      Number.isSafeInteger(entry.ruleId) && entry.ruleId > 0 ? entry.ruleId : null;
+    if (ruleId === null || ruleIds.has(ruleId)) ruleId = ++settings.itemSeq;
+    ruleIds.add(ruleId);
+    settings.itemSeq = Math.max(settings.itemSeq, ruleId);
+    out.push({
+      ...entry,
+      id: typeof entry.id === "string" && entry.id.length > 0 ? entry.id : `u${ruleId.toString(36)}`,
+      ruleId,
+      pattern: entry.pattern,
+      budgetMinutes: Math.max(
+        0,
+        Math.min(1440, Math.round(finiteNumber(entry.budgetMinutes, 30)))
+      ),
+      enabled: entry.enabled === undefined ? true : Boolean(entry.enabled),
+      access: entry.access === "granted" ? "granted" : "denied",
+    });
+  }
+  return out;
+}
+
+/**
+ * Structural sanitizer: the single trust boundary for anything that reaches
+ * the state document — an on-disk profile, an imported file, a hand-edited
+ * export. Every consumer indexes these fields without checks (`items` is
+ * iterated, `usage.days[day]` is written through, `session` is destructured),
+ * so one malformed field would otherwise brick tracking AND enforcement until
+ * the user clears storage. Idempotent: a sanitized document round-trips
+ * unchanged, which is what keeps `load()` from rewriting on every read.
+ */
+function sanitize(state) {
+  const settings = {
+    ...state.settings,
+    version: finiteNumber(state.settings?.version, 1),
+    itemSeq: Math.max(1000, Math.floor(finiteNumber(state.settings?.itemSeq, 1000))),
+    protection:
+      state.settings?.protection &&
+      typeof state.settings.protection === "object" &&
+      !Array.isArray(state.settings.protection)
+        ? state.settings.protection
+        : null,
+  };
+  const runtime = {
+    ...state.runtime,
+    unblockUntil: numberMap(state.runtime?.unblockUntil),
+    dayOverrides: sanitizeOverrides(state.runtime?.dayOverrides),
+  };
+  if (typeof runtime.lastRolloverDay !== "string") delete runtime.lastRolloverDay;
+  return {
+    ...state,
+    schema: SCHEMA,
+    config: {
+      ...state.config,
+      masterEnabled: state.config?.masterEnabled !== false,
+      graceSeconds: Math.max(0, finiteNumber(state.config?.graceSeconds, 10)),
+      unblockMinutes: Math.max(0, finiteNumber(state.config?.unblockMinutes, 15)),
+      unblockPassesPerDay: Math.max(
+        0,
+        Math.floor(finiteNumber(state.config?.unblockPassesPerDay, 3))
+      ),
+      items: sanitizeItems(state.config?.items, settings),
+    },
+    usage: { ...state.usage, days: sanitizeDays(state.usage?.days) },
+    session: sanitizeSession(state.session),
+    runtime,
+    settings,
+  };
+}
+
 /** Resolve any stored/imported shape into the current schema. Pure, exported
  *  for the import pipeline (transfer.js). */
 export function migrate(state) {
-  if (!state || typeof state !== "object" || state.schema > SCHEMA) {
+  if (!state || typeof state !== "object" || Array.isArray(state) || state.schema > SCHEMA) {
     return defaults();
   }
   let s = state;
@@ -45,7 +186,7 @@ export function migrate(state) {
   if (merged.settings.protection?.salt) {
     merged.settings.protection = null;
   }
-  return merged;
+  return sanitize(merged);
 }
 
 /** Load state, seeding/migrating on disk only when the shape changes. */

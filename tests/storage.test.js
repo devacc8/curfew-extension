@@ -44,9 +44,84 @@ function setChrome() {
 }
 
 setChrome();
-const { load, update, mutate, onChanged, upsertItem, removeItem, setMasterEnabled } = await import(
-  "../src/common/storage.js"
-);
+const { load, update, mutate, migrate, onChanged, upsertItem, removeItem, setMasterEnabled } =
+  await import("../src/common/storage.js");
+
+test("migrate sanitizes a hostile shape instead of bricking consumers", () => {
+  const state = migrate({
+    schema: 1,
+    config: { items: {}, masterEnabled: "nope", graceSeconds: "x" },
+    usage: { days: null },
+    runtime: null,
+    settings: null,
+    session: { pattern: 5, phase: "counting" },
+  });
+  assert.deepEqual(state.config.items, []);
+  assert.deepEqual(state.usage.days, {});
+  assert.deepEqual(state.runtime, { unblockUntil: {}, dayOverrides: {} });
+  assert.equal(state.session, null);
+  assert.equal(state.config.masterEnabled, true);
+  assert.equal(state.config.graceSeconds, 10);
+  assert.equal(state.config.unblockMinutes, 15);
+  assert.equal(state.settings.itemSeq, 1000);
+});
+
+test("migrate repairs junk item fields and keeps future ones", () => {
+  const state = migrate({
+    schema: 1,
+    config: {
+      items: [
+        {
+          id: "keep",
+          pattern: "x.com",
+          ruleId: 1005,
+          budgetMinutes: "45",
+          enabled: 0,
+          access: "weird",
+          future: "kept",
+        },
+        { pattern: "x.com", ruleId: 1006 },
+        { pattern: "", ruleId: 7 },
+        "junk",
+        { pattern: "y.com", ruleId: 1005 },
+      ],
+    },
+  });
+  assert.equal(state.config.items.length, 2);
+  const [first, second] = state.config.items;
+  assert.equal(first.id, "keep");
+  assert.equal(first.budgetMinutes, 45);
+  assert.equal(first.enabled, false);
+  assert.equal(first.access, "denied");
+  assert.equal(first.future, "kept");
+  assert.equal(second.pattern, "y.com");
+  assert.notEqual(second.ruleId, first.ruleId);
+  assert.ok(state.settings.itemSeq >= Math.max(...state.config.items.map((i) => i.ruleId)));
+});
+
+test("migrate coerces string day counters to numbers (no concatenation)", () => {
+  const state = migrate({
+    schema: 1,
+    usage: {
+      days: {
+        "2026-09-02": {
+          patternSeconds: { "x.com": "600" },
+          unblocks: { "x.com": "2" },
+          bySite: {},
+        },
+        "not-a-day": { patternSeconds: { "x.com": 5 } },
+      },
+    },
+  });
+  assert.deepEqual(state.usage.days["2026-09-02"].patternSeconds, { "x.com": 600 });
+  assert.deepEqual(state.usage.days["2026-09-02"].unblocks, { "x.com": 2 });
+  assert.equal(state.usage.days["not-a-day"], undefined);
+});
+
+test("migrate is idempotent so load() never rewrites on every read", () => {
+  const once = migrate({ schema: 1, config: { items: [{ pattern: "x.com" }] } });
+  assert.equal(JSON.stringify(migrate(once)), JSON.stringify(once));
+});
 
 test("load seeds defaults on first run", async () => {
   setChrome();

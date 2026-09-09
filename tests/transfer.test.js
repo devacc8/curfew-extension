@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { dayKey } from "../src/common/time.js";
 import { encodeExport, decodeExport, pruneDays } from "../src/common/transfer.js";
+import { desiredRules } from "../src/common/rules.js";
 
 const STATE = {
   schema: 1,
@@ -75,6 +76,23 @@ test("decode resolves a state written by a newer schema to current defaults", ()
   assert.equal(decoded.ok, true);
   assert.equal(decoded.state.schema, 1);
   assert.deepEqual(decoded.state.config.items, []);
+});
+
+test("decode sanitizes a hostile payload so consumers cannot throw", () => {
+  // A hand-edited export used to reach the state document as-is and make
+  // `for (const item of state.config.items)` throw on every tick.
+  const hostile = JSON.stringify({
+    kind: "curfew-export",
+    version: 1,
+    state: { schema: 1, config: { items: {} }, usage: { days: [] } },
+  });
+  const decoded = decodeExport(hostile);
+  assert.equal(decoded.ok, true);
+  assert.deepEqual(decoded.state.config.items, []);
+  assert.deepEqual(decoded.state.usage.days, {});
+  assert.doesNotThrow(() =>
+    desiredRules(decoded.state, { day: "2026-09-02", nowMs: 0, blockedPageFor: () => "/b" })
+  );
 });
 
 test("pruneDays keeps only the newest rows", () => {
