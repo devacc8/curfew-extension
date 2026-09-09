@@ -1,5 +1,7 @@
 import { load, mutate, onChanged } from "./common/storage.js";
-import { parsePattern, patternToString, toMatchOrigins } from "./common/patterns.js";
+import { applyI18n, msg } from "./ui/i18n.js";
+import { grantItem, syncAccessFlags } from "./ui/access.js";
+import { addSite } from "./ui/site-form.js";
 import { dailyTotals } from "./common/budget.js";
 import { formatDuration, remainingText, rowViewModel } from "./common/view.js";
 import { dayKey, previousDayKey } from "./common/time.js";
@@ -18,26 +20,6 @@ const els = {
   openOptions: /** @type {HTMLElement} */ (document.getElementById("openOptions")),
   addCurrent: /** @type {HTMLElement} */ (document.getElementById("addCurrent")),
 };
-
-const msg = (key) => chrome.i18n.getMessage(key);
-
-function applyI18n() {
-  for (const el of /** @type {NodeListOf<HTMLElement>} */ (
-    document.querySelectorAll("[data-i18n]")
-  )) {
-    el.textContent = msg(el.dataset.i18n ?? "");
-  }
-  for (const el of /** @type {NodeListOf<HTMLInputElement>} */ (
-    document.querySelectorAll("[data-i18n-placeholder]")
-  )) {
-    el.placeholder = msg(el.dataset.i18nPlaceholder ?? "");
-  }
-  for (const el of /** @type {NodeListOf<HTMLElement>} */ (
-    document.querySelectorAll("[data-i18n-title]")
-  )) {
-    el.title = msg(el.dataset.i18nTitle ?? "");
-  }
-}
 
 function setStatus(key) {
   els.status.textContent = msg(key);
@@ -73,14 +55,6 @@ function renderTopSites(state) {
   }
 }
 
-async function requestAccess(pattern) {
-  try {
-    return await chrome.permissions.request({ origins: toMatchOrigins(pattern) });
-  } catch {
-    return false;
-  }
-}
-
 function send(type, itemId) {
   return chrome.runtime.sendMessage({ type, itemId }).catch(() => null);
 }
@@ -90,63 +64,6 @@ function send(type, itemId) {
  * (tech doc Q5), so items are ALWAYS written first and access is reconciled
  * with the permissions API on every popup open.
  */
-async function syncAccessFlags() {
-  const state = await load();
-  const checks = await Promise.all(
-    state.config.items.map(async (item) => {
-      const parsed = parsePattern(item.pattern);
-      if (!parsed.ok) return [item.id, false];
-      try {
-        const ok = await chrome.permissions.contains({
-          origins: toMatchOrigins(parsed.pattern),
-        });
-        return [item.id, ok];
-      } catch {
-        // A thrown permissions call is "unknown", not "denied": forcing
-        // denied would silently disable tracking AND enforcement for a site
-        // that is still granted (the wall would never come).
-        return [item.id, null];
-      }
-    })
-  );
-  await mutate("item.accessBatch", {
-    entries: checks.map(([id, granted]) => ({ id, granted })),
-  });
-}
-
-async function grantItem(item) {
-  const parsed = parsePattern(item.pattern);
-  if (!parsed.ok) return;
-  const granted = await requestAccess(parsed.pattern);
-  await mutate("item.update", {
-    id: item.id,
-    fields: { access: granted ? "granted" : "denied" },
-  });
-}
-
-async function addSite(rawPattern, minutes) {
-  const parsed = parsePattern(rawPattern);
-  if (!parsed.ok) {
-    rejectPattern();
-    return;
-  }
-  const budget = Number.isFinite(minutes) ? Math.max(0, Math.min(1440, minutes)) : 30;
-  const patternStr = patternToString(parsed.pattern);
-  const created = await mutate("item.add", {
-    pattern: patternStr,
-    budgetMinutes: budget,
-    access: "denied",
-  });
-  els.pattern.value = "";
-  const granted = await requestAccess(parsed.pattern);
-  await mutate("item.update", {
-    id: created?.id,
-    fields: { access: granted ? "granted" : "denied" },
-  });
-  setStatus(granted ? "addedGranted" : "addedDenied");
-  send("flush");
-}
-
 els.pattern.addEventListener("input", () => {
   els.pattern.classList.remove("invalid");
 });
@@ -287,8 +204,15 @@ els.master.addEventListener("change", async () => {
   await mutate("master.set", { value: true });
 });
 
-els.add.addEventListener("click", () => {
-  addSite(els.pattern.value, Number(els.minutes.value));
+els.add.addEventListener("click", async () => {
+  const result = await addSite(els.pattern.value, Number(els.minutes.value));
+  if (!result.ok) {
+    rejectPattern();
+    return;
+  }
+  els.pattern.value = "";
+  setStatus(result.granted ? "addedGranted" : "addedDenied");
+  send("flush");
 });
 
 /** The host of the tab this popup was opened on. `activeTab` is granted by

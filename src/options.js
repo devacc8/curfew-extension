@@ -1,5 +1,7 @@
 import { load, mutate, onChanged } from "./common/storage.js";
-import { parsePattern, patternToString, toMatchOrigins } from "./common/patterns.js";
+import { applyI18n, msg } from "./ui/i18n.js";
+import { grantItem, syncAccessFlags } from "./ui/access.js";
+import { addSite } from "./ui/site-form.js";
 import { encodeExport, decodeExport } from "./common/transfer.js";
 import { dayKey } from "./common/time.js";
 import { guarded, enableProtection, disableProtection } from "./protect.js";
@@ -23,26 +25,6 @@ const els = {
 
 let siteFilter = "";
 
-const msg = (key) => chrome.i18n.getMessage(key);
-
-function applyI18n() {
-  for (const el of /** @type {NodeListOf<HTMLElement>} */ (
-    document.querySelectorAll("[data-i18n]")
-  )) {
-    el.textContent = msg(el.dataset.i18n ?? "");
-  }
-  for (const el of /** @type {NodeListOf<HTMLInputElement>} */ (
-    document.querySelectorAll("[data-i18n-placeholder]")
-  )) {
-    el.placeholder = msg(el.dataset.i18nPlaceholder ?? "");
-  }
-  for (const el of /** @type {NodeListOf<HTMLElement>} */ (
-    document.querySelectorAll("[data-i18n-title]")
-  )) {
-    el.title = msg(el.dataset.i18nTitle ?? "");
-  }
-}
-
 function setStatus(key) {
   els.status.textContent = msg(key);
 }
@@ -50,37 +32,6 @@ function setStatus(key) {
 function rejectPattern() {
   els.pattern.classList.add("invalid");
   setStatus("invalidPattern");
-}
-
-async function requestAccess(pattern) {
-  try {
-    return await chrome.permissions.request({ origins: toMatchOrigins(pattern) });
-  } catch {
-    return false;
-  }
-}
-
-async function addSite() {
-  const parsed = parsePattern(els.pattern.value);
-  if (!parsed.ok) {
-    rejectPattern();
-    return;
-  }
-  const minutes = Number(els.minutes.value);
-  const budget = Number.isFinite(minutes) ? Math.max(0, Math.min(1440, minutes)) : 30;
-  const patternStr = patternToString(parsed.pattern);
-  const created = await mutate("item.add", {
-    pattern: patternStr,
-    budgetMinutes: budget,
-    access: "denied",
-  });
-  els.pattern.value = "";
-  const granted = await requestAccess(parsed.pattern);
-  await mutate("item.update", {
-    id: created?.id,
-    fields: { access: granted ? "granted" : "denied" },
-  });
-  setStatus(granted ? "addedGranted" : "addedDenied");
 }
 
 /**
@@ -179,13 +130,7 @@ function buildRow(item) {
     grant.textContent = msg("grantAccess");
     grant.addEventListener("click", async () => {
       grant.disabled = true;
-      const parsed = parsePattern(item.pattern);
-      if (!parsed.ok) return;
-      const ok = await requestAccess(parsed.pattern);
-      await mutate("item.update", {
-        id: item.id,
-        fields: { access: ok ? "granted" : "denied" },
-      });
+      await grantItem(item);
     });
     li.append(grant);
   }
@@ -249,7 +194,15 @@ els.master.addEventListener("change", async () => {
   await mutate("master.set", { value: true });
 });
 
-els.add.addEventListener("click", addSite);
+els.add.addEventListener("click", async () => {
+  const result = await addSite(els.pattern.value, Number(els.minutes.value));
+  if (!result.ok) {
+    rejectPattern();
+    return;
+  }
+  els.pattern.value = "";
+  setStatus(result.granted ? "addedGranted" : "addedDenied");
+});
 
 els.pattern.addEventListener("input", () => {
   els.pattern.classList.remove("invalid");
@@ -268,29 +221,6 @@ async function exportData() {
   URL.revokeObjectURL(url);
 }
 
-async function reverifyAccess() {
-  const state = await load();
-  const checks = await Promise.all(
-    state.config.items.map(async (item) => {
-      const parsed = parsePattern(item.pattern);
-      if (!parsed.ok) return [item.id, false];
-      try {
-        const ok = await chrome.permissions.contains({
-          origins: toMatchOrigins(parsed.pattern),
-        });
-        return [item.id, ok];
-      } catch {
-        // Unknown, not denied: a failed permissions call must not silently
-        // switch off tracking and enforcement for a still-granted site.
-        return [item.id, null];
-      }
-    })
-  );
-  await mutate("item.accessBatch", {
-    entries: checks.map(([id, granted]) => ({ id, granted })),
-  });
-}
-
 async function importData(file) {
   const text = await file.text();
   const result = decodeExport(text);
@@ -307,7 +237,7 @@ async function importData(file) {
     await mutate("state.import", { imported: result.state });
   });
   if (!done) return;
-  await reverifyAccess();
+  await syncAccessFlags(await load());
   els.dataStatus.textContent = msg("imported");
 }
 
@@ -370,7 +300,7 @@ function scheduleRender() {
 onChanged(scheduleRender);
 applyI18n();
 renderProtection();
-reverifyAccess().then(scheduleRender);
+load().then(syncAccessFlags).then(scheduleRender);
 render();
 
 const prefill = new URLSearchParams(location.search).get("add");

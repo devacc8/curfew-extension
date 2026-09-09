@@ -103,6 +103,10 @@ curfew-extension/
       equation.js             # bracketed equation generator + evaluator (pure)
       storage.js              # the ONLY module that touches chrome.storage
   src/protect.js              # shared challenge dialogs + guarded() for pages
+  src/ui/                     # page-side helpers (chrome.i18n, permissions)
+    i18n.js                   # msg() + applyI18n()
+    access.js                 # requestAccess / syncAccessFlags / grantItem
+    site-form.js              # addSite(): parse, clamp, write, grant
   tests/                      # node --test, mirrors common/ + invariant tests
     time.test.js
     patterns.test.js
