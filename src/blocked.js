@@ -2,12 +2,13 @@ import { load } from "./common/storage.js";
 import { dayKey, nextLocalMidnight } from "./common/time.js";
 import { parsePattern, matchesHost } from "./common/patterns.js";
 import { secondsUsedToday, passesLeftToday } from "./common/budget.js";
-import { isOpen } from "./common/rules.js";
+import { closeReason, isOpen } from "./common/rules.js";
 
 const msg = (key) => chrome.i18n.getMessage(key);
 
 let state = null;
 let item = null;
+let leaving = false;
 const domain = new URLSearchParams(location.search).get("domain");
 
 for (const el of /** @type {NodeListOf<HTMLElement>} */ (
@@ -99,6 +100,16 @@ async function refresh() {
     hintEl.textContent = msg("curfewLifted");
     stayEl.hidden = true;
     passesEl.hidden = true;
+    // A wall can outlive its rule (the browser restored the tab before the
+    // service worker reconciled at boot). Get out of the user's way instead
+    // of asking them to click.
+    if (!leaving) {
+      leaving = true;
+      setTimeout(() => {
+        if (isOpen(state, item, day, Date.now())) location.href = `https://${domain}/`;
+        else leaving = false;
+      }, 1200);
+    }
   } else {
     if (domainEl.querySelector("a")) {
       domainEl.textContent = domain;
@@ -128,15 +139,24 @@ function paintCountdown() {
   if (!item || !state || document.visibilityState !== "visible") return;
   const now = Date.now();
   const day = dayKey(now);
-  if (isOpen(state, item, day, now)) return;
+  const reason = closeReason(state, item, day, now);
+  if (reason === null) return;
   const cooldownUntil = state.runtime.cooldownUntil?.[item.pattern];
   const until =
-    Number.isFinite(cooldownUntil) && cooldownUntil > now
+    reason === "cooldown" && Number.isFinite(cooldownUntil) && cooldownUntil > now
       ? cooldownUntil
       : nextLocalMidnight(new Date(now)).getTime();
   const leftPasses = passesLeftToday(state, day, state.config.unblockPassesPerDay);
+  // Say WHY, not just "closed": a cooldown and a spent budget feel completely
+  // different, and a mystery block is what makes people distrust the tool.
+  const why =
+    reason === "cooldown"
+      ? msg("closedCooldownReason")
+      : reason === "override"
+        ? msg("blockNow")
+        : msg("closedBudgetReason");
   hintEl.textContent =
-    `${msg("returnsInLabel")} ${formatWait(until - now)}` +
+    `${why} · ${msg("returnsInLabel")} ${formatWait(until - now)}` +
     (leftPasses <= 0 ? ` · ${msg("limitReached")}` : "");
 }
 

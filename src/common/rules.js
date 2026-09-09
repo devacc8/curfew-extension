@@ -9,29 +9,36 @@ import {
 } from "./budget.js";
 
 /**
- * "open" from the ENFORCEMENT point of view: no rule should exist.
+ * Why enforcement closes this item right now, or null when it is open.
+ * The wall and the popup say it out loud, so a block is never a mystery:
+ * a cooldown and a spent budget look completely different to the user.
  * Precedence: access-denied -> open; an ACTIVE UNBLOCK WINDOW wins over
  * everything (it is the user's explicit "stay anyway" from the wall); a day
- * override for TODAY ("block" / "allow"); an anti-infinite-scroll COOLDOWN
- * (closed — its whole point is to interrupt a session, so only a pass or an
- * explicit allow lifts it); then the budget — the EFFECTIVE budget, so
- * burned passes extend the allowance exactly as the popup promises.
+ * override for TODAY ("block" / "allow"); an anti-infinite-scroll COOLDOWN;
+ * then the budget — the EFFECTIVE budget, so burned passes extend the
+ * allowance exactly as the popup promises.
+ * @returns {"override" | "cooldown" | "budget" | null}
  */
-export function isOpen(state, item, day, nowMs) {
-  if (item.access !== "granted") return true;
-  if (unblockWindowActive(state, item.pattern, nowMs)) return true;
+export function closeReason(state, item, day, nowMs) {
+  if (item.access !== "granted") return null;
+  if (unblockWindowActive(state, item.pattern, nowMs)) return null;
   const override = state.runtime.dayOverrides?.[item.pattern];
-  if (override && override.day === day) return override.action === "allow";
-  if (cooldownActive(state, item.pattern, nowMs)) return false;
+  if (override && override.day === day) return override.action === "allow" ? null : "override";
+  if (cooldownActive(state, item.pattern, nowMs)) return "cooldown";
   const bonus = passBonusSeconds(state, item.pattern, day, state.config?.unblockMinutes);
-  return (
-    decide(
-      item,
-      secondsUsedToday(state, item.pattern, day),
-      state.config.masterEnabled,
-      bonus
-    ) === "open"
-  );
+  return decide(
+    item,
+    secondsUsedToday(state, item.pattern, day),
+    state.config.masterEnabled,
+    bonus
+  ) === "closed"
+    ? "budget"
+    : null;
+}
+
+/** "open" from the ENFORCEMENT point of view: no rule should exist. */
+export function isOpen(state, item, day, nowMs) {
+  return closeReason(state, item, day, nowMs) === null;
 }
 
 /**

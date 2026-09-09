@@ -179,6 +179,10 @@ export function transition(state, event, config, nowMs) {
     phase: "grace",
     phaseStartedAt: nowMs,
     lastTickAt: nowMs,
+    // Credited time in THIS unbroken session: the anti-infinite-scroll limit
+    // must measure presence, not wall clock (sleep/closed browser would trip
+    // it instantly on wake).
+    activeMs: 0,
   });
 
   if (!state) {

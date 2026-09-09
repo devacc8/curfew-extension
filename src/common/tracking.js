@@ -20,10 +20,22 @@ import { pruneDays } from "./transfer.js";
  * assert the accounting rather than guess at it.
  */
 
-/** Cap one credit, cut it at midnight, book each part to its own day. */
+/** Cap one credit, cut it at midnight, book each part to its own day, and
+ *  add it to the running session's credited-time counter. */
 function bookCredit(state, credit, startAtMs, maxCreditMs) {
   const parts = splitCreditsAtMidnight(capCredits([credit], maxCreditMs), startAtMs);
   for (const part of parts) applyCredit(state, part, part.day);
+  if (state.session) {
+    const gained = parts
+      .filter((part) => part.pattern === state.session.pattern)
+      .reduce((sum, part) => sum + part.ms, 0);
+    if (gained > 0) {
+      state.session = {
+        ...state.session,
+        activeMs: Math.max(0, state.session.activeMs ?? 0) + gained,
+      };
+    }
+  }
   return parts;
 }
 
@@ -47,10 +59,12 @@ export function trackEnvironment(state, event, nowMs, options = {}) {
     // was dead must credit its post-grace part, not vanish whole.
     const promoted = promoteGrace(startSession, state.config, nowMs);
     const recovery = recoveryCredit(promoted, nowMs, maxCreditMs);
+    // Publish the resumed session BEFORE booking, so the recovered credit
+    // lands on the session that survives (not on the one being replaced).
+    state.session = { ...promoted, lastTickAt: nowMs, phaseStartedAt: nowMs };
     if (recovery) {
       booked.push(...bookCredit(state, recovery, promoted.lastTickAt, maxCreditMs));
     }
-    state.session = { ...promoted, lastTickAt: nowMs, phaseStartedAt: nowMs };
   }
 
   // The credit window starts where the session will actually be credited
@@ -86,9 +100,9 @@ export function trackTick(state, nowMs, options = {}) {
 }
 
 /**
- * Start an anti-infinite-scroll cooldown when the counting session has run
- * for its limit: the pattern is blocked for `cooldownMinutes` and the session
- * is dropped. Elapsed time is already booked by the caller, so the overshoot
+ * Start an anti-infinite-scroll cooldown once the counting session has
+ * ACCUMULATED its limit of credited time: the pattern is blocked for
+ * `cooldownMinutes` and the session is dropped. Elapsed time is already booked by the caller, so the overshoot
  * stays visible in the dashboard (honesty surface).
  * @returns `{ pattern, until }` when a cooldown started, else null.
  */
@@ -100,7 +114,10 @@ export function applySessionLimit(state, nowMs) {
   const limitMinutes = Math.max(0, item.sessionLimitMinutes ?? 0);
   const cooldownMinutes = Math.max(0, item.cooldownMinutes ?? 0);
   if (limitMinutes <= 0 || cooldownMinutes <= 0) return null;
-  if (nowMs - session.phaseStartedAt < limitMinutes * 60_000) return null;
+  // Credited presence, not wall clock: a machine sleep or a closed browser
+  // must not count as "still scrolling".
+  const activeMs = Math.max(0, session.activeMs ?? 0);
+  if (activeMs < limitMinutes * 60_000) return null;
   const until = nowMs + cooldownMinutes * 60_000;
   state.runtime.cooldownUntil[session.pattern] = until;
   state.session = null;

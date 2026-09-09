@@ -518,6 +518,7 @@ try {
         phase: "counting",
         phaseStartedAt: now - 2 * 60_000,
         lastTickAt: now,
+        activeMs: 2 * 60_000,
       },
       runtime: {
         unblockUntil: {},
@@ -557,6 +558,72 @@ try {
   } else {
     console.log("PASS: the session limit closes the site and arms the cooldown");
   }
+  // A wall can outlive its rule: dynamic rules survive a browser restart, so
+  // a restored tab may hit one before the worker reconciles. Opening such a
+  // stale wall must leave on its own instead of trapping the user.
+  await helper.evaluate(async (host) => {
+    const { dayKey } = await import(chrome.runtime.getURL("src/common/time.js"));
+    const day = dayKey();
+    const item = {
+      id: "e2e-stale-wall",
+      ruleId: 9020,
+      pattern: host,
+      budgetMinutes: 1000,
+      sessionLimitMinutes: 0,
+      cooldownMinutes: 0,
+      enabled: true,
+      access: "granted",
+    };
+    await new Promise((res) =>
+      chrome.storage.local.set(
+        {
+          curfew: {
+            schema: 1,
+            config: {
+              masterEnabled: true,
+              graceSeconds: 10,
+              unblockMinutes: 15,
+              unblockPassesPerDay: 3,
+              items: [item],
+            },
+            usage: { days: { [day]: { patternSeconds: {}, unblocks: {}, bySite: {} } } },
+            session: null,
+            runtime: {
+              unblockUntil: {},
+              cooldownUntil: {},
+              dayOverrides: {},
+              lastRolloverDay: day,
+            },
+            settings: { version: 1, itemSeq: 9020, protection: null },
+          },
+        },
+        res
+      )
+    );
+    await chrome.declarativeNetRequest.updateDynamicRules({
+      addRules: [
+        {
+          id: 9020,
+          priority: 1,
+          action: { type: "redirect", redirect: { extensionPath: "/src/blocked.html" } },
+          condition: { urlFilter: `||${host}/`, resourceTypes: ["main_frame"] },
+        },
+      ],
+    });
+  }, siteHost);
+  await page.goto(`chrome-extension://${extensionId}/src/blocked.html?domain=${siteHost}`, {
+    waitUntil: "domcontentloaded",
+  });
+  await sleep(2500);
+  const wallUrl = page.url();
+  console.log("stale wall left to:", wallUrl);
+  if (wallUrl.includes("blocked.html")) {
+    console.log("FAIL: a stale wall trapped the user");
+    process.exitCode = 1;
+  } else {
+    console.log("PASS: a stale wall leaves by itself");
+  }
+
   await helper.close();
   await new Promise((resolve) => server.close(resolve));
 

@@ -581,6 +581,8 @@ absence of a rule = open site (positivity is structural).
 | midnight / item disabled/deleted | remove rule |
 | unblock window opens ("stay anyway") | rule absent while window open; one-shot alarm re-adds at exact expiry; every tick self-heals if the alarm was missed |
 | extension updated/reloaded | `getDynamicRules()` diff vs desired set → reconcile (idempotent, never assume) |
+| worker boot | the same reconcile runs as soon as the worker starts, so a rule left over from the previous browser session is removed BEFORE a restored tab can hit it |
+| a wall that outlived its rule | the wall re-evaluates `closeReason()` on every storage change and leaves by itself; it also states WHY it is up (budget vs cooldown vs "block now") |
 
 Reconciliation rule: the SW **always computes the desired rule set from
 storage** and diffs it against `chrome.declarativeNetRequest.getDynamicRules()`
@@ -636,8 +638,10 @@ scroll*: a single unbroken session. Two per-item numbers address it:
   time stops accruing immediately.
 
 `tracking.js` (`applySessionLimit`) starts the cooldown when the counting
-session's `now − phaseStartedAt` reaches the limit, sets
-`runtime.cooldownUntil[pattern]` and nulls the session. The SW arms a one-shot
+session has ACCUMULATED its limit of credited time (`session.activeMs`, grown
+by every booked credit), sets `runtime.cooldownUntil[pattern]` and nulls the
+session. Credited time — not wall clock: a machine sleep or a closed browser
+would otherwise look like a 10-minute scroll the moment the user came back. The SW arms a one-shot
 `cooldown:<ruleId>` alarm that re-opens the site at the deadline;
 `pruneRuntime` drops expired entries and `applyRollover` clears them at
 midnight.

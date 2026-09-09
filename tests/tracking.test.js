@@ -171,8 +171,10 @@ test("applySessionLimit: reaching the limit blocks the pattern and drops the ses
     phase: "counting",
     phaseStartedAt: T0,
     lastTickAt: T0 + 9 * MIN,
+    activeMs: 9 * MIN,
   };
   assert.equal(applySessionLimit(state, T0 + 9 * MIN), null);
+  state.session = { ...state.session, activeMs: 10 * MIN };
   assert.deepEqual(applySessionLimit(state, T0 + 10 * MIN), {
     pattern: "x.com",
     until: T0 + 15 * MIN,
@@ -196,4 +198,46 @@ test("simulation: a long session trips the cooldown and stops accruing", () => {
   assert.equal(state.runtime.cooldownUntil["x.com"], T0 + 8 * MIN);
   // The overshoot past the limit is booked honestly, then nothing accrues.
   assert.equal(credited, 6 * MIN - 10 * S);
+});
+
+test("session limit counts credited presence, not wall clock", () => {
+  // A machine sleep or a closed browser must not count as "still scrolling":
+  // the session clock only advances with time that was actually booked.
+  const state = fresh();
+  state.config.items[0].sessionLimitMinutes = 10;
+  state.config.items[0].cooldownMinutes = 5;
+  state.session = {
+    pattern: "x.com",
+    phase: "counting",
+    phaseStartedAt: T0,
+    lastTickAt: T0,
+    activeMs: 0,
+  };
+  const now = T0 + 2 * 60 * MIN;
+  trackEnvironment(
+    state,
+    { type: "environment", pattern: "x.com", canCount: true },
+    now,
+    { fromWake: true, maxCreditMs: CAP }
+  );
+  // 2 hours of absence booked at most the cap, so the limit is nowhere near.
+  assert.equal(state.session.activeMs, CAP);
+  assert.equal(state.runtime.cooldownUntil["x.com"], undefined);
+});
+
+test("a continuously credited session still trips the limit", () => {
+  const state = fresh();
+  state.config.items[0].sessionLimitMinutes = 5;
+  state.config.items[0].cooldownMinutes = 1;
+  trackEnvironment(
+    state,
+    { type: "environment", pattern: "x.com", canCount: true },
+    T0,
+    { fromWake: true, maxCreditMs: CAP }
+  );
+  for (const at of [3 * MIN, 6 * MIN]) {
+    trackTick(state, T0 + at, { maxCreditMs: CAP });
+  }
+  assert.equal(state.session, null);
+  assert.equal(state.runtime.cooldownUntil["x.com"], T0 + 7 * MIN);
 });

@@ -62,6 +62,19 @@ chrome.runtime.onMessage.addListener(onMessage);
 function runTracker() {
   serial(onTrackerEvent).catch((error) => console.error("curfew: tracker failed", error));
 }
+
+/**
+ * Reconcile the moment the worker starts. Dynamic rules survive a browser
+ * restart, so a tab restored before `onStartup` lands can hit a rule that is
+ * no longer wanted — the user sees a wall while the budget still has minutes
+ * left. Storage is the source of truth; this makes the projection catch up.
+ */
+async function bootReconcile() {
+  const state = await rollover(await load());
+  await reconcile(state);
+  await bounceClosedTabs(state);
+}
+serial(bootReconcile).catch((error) => console.error("curfew: boot reconcile failed", error));
 chrome.contextMenus.onClicked.addListener((info, tab) =>
   serial(() => onContextMenu(info, tab)).catch((e) =>
     console.error("curfew: menu handler failed", e)

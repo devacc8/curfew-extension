@@ -223,5 +223,11 @@
   },
   "noCurrentSite": {
     "message": "This tab has no site to add"
+  },
+  "closedBudgetReason": {
+    "message": "Daily budget spent"
+  },
+  "closedCooldownReason": {
+    "message": "Taking a break"
   }
 }

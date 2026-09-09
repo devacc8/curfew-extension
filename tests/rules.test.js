@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { isOpen, desiredRules, resolvePassRequest } from "../src/common/rules.js";
+import { closeReason, isOpen, desiredRules, resolvePassRequest } from "../src/common/rules.js";
 import { passesUsedToday } from "../src/common/budget.js";
 
 const DAY = "2026-09-02";
@@ -289,4 +289,35 @@ test("isOpen: denied access beats a cooldown (nothing to enforce)", () => {
   });
   denied.runtime.cooldownUntil = { "*.reddit.com": NOW + 60_000 };
   assert.equal(isOpen(denied, denied.config.items[0], DAY, NOW), true);
+});
+
+test("closeReason names the blocker (or null when open)", () => {
+  const open = state();
+  assert.equal(closeReason(open, open.config.items[0], DAY, NOW), null);
+
+  const spent = { ...state(), ...used(30 * 60) };
+  assert.equal(closeReason(spent, spent.config.items[0], DAY, NOW), "budget");
+
+  const cooling = state();
+  cooling.runtime.cooldownUntil = { "*.reddit.com": NOW + 60_000 };
+  assert.equal(closeReason(cooling, cooling.config.items[0], DAY, NOW), "cooldown");
+
+  const blocked = state();
+  blocked.runtime.dayOverrides["*.reddit.com"] = { day: DAY, action: "block" };
+  assert.equal(closeReason(blocked, blocked.config.items[0], DAY, NOW), "override");
+
+  const passed = state();
+  passed.runtime.cooldownUntil = { "*.reddit.com": NOW + 60_000 };
+  passed.runtime.unblockUntil["*.reddit.com"] = NOW + 60_000;
+  assert.equal(closeReason(passed, passed.config.items[0], DAY, NOW), null);
+
+  const denied = state({
+    config: {
+      masterEnabled: true,
+      unblockMinutes: 15,
+      items: [{ ...state().config.items[0], access: "denied" }],
+    },
+  });
+  denied.runtime.cooldownUntil = { "*.reddit.com": NOW + 60_000 };
+  assert.equal(closeReason(denied, denied.config.items[0], DAY, NOW), null);
 });

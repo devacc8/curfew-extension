@@ -118,6 +118,7 @@ test("transition: from null, countable env starts a grace session", () => {
     phase: "grace",
     phaseStartedAt: 0,
     lastTickAt: 0,
+    activeMs: 0,
   });
   assert.deepEqual(credits, []);
 });
@@ -174,6 +175,7 @@ test("transition: pattern switch credits the old window and starts fresh grace",
     phase: "grace",
     phaseStartedAt: 25 * S,
     lastTickAt: 25 * S,
+    activeMs: 0,
   });
 });
 

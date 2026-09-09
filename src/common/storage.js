@@ -26,6 +26,7 @@ const SCHEMA = 1;
  * @property {"grace" | "counting"} phase
  * @property {number} phaseStartedAt
  * @property {number} lastTickAt
+ * @property {number} activeMs - credited ms in this unbroken session
  */
 
 /**
@@ -106,7 +107,13 @@ function sanitizeSession(raw) {
   const phaseStartedAt = finiteNumber(raw.phaseStartedAt, null);
   const lastTickAt = finiteNumber(raw.lastTickAt, null);
   if (phaseStartedAt === null || lastTickAt === null) return null;
-  return { pattern: raw.pattern, phase: raw.phase, phaseStartedAt, lastTickAt };
+  return {
+    pattern: raw.pattern,
+    phase: raw.phase,
+    phaseStartedAt,
+    lastTickAt,
+    activeMs: Math.max(0, finiteNumber(raw.activeMs, 0)),
+  };
 }
 
 function sanitizeOverrides(raw) {

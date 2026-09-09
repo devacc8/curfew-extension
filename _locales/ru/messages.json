@@ -223,5 +223,11 @@
   },
   "noCurrentSite": {
     "message": "На этой вкладке нет сайта"
+  },
+  "closedBudgetReason": {
+    "message": "Дневной лимит исчерпан"
+  },
+  "closedCooldownReason": {
+    "message": "Перерыв"
   }
 }
