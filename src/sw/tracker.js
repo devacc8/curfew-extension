@@ -23,7 +23,7 @@ export function createTracker({ reconcile, bounceClosedTabs, rollover }) {
     const probe = await probeEnv();
 
     // 2) then load -> update with NO awaits in between: the read-modify-write
-    //    is atomic within JS, so concurrent writes (wall unblock, blockNow)
+    //    is atomic within JS, so concurrent writes (wall pass, blockNow)
     //    can never be clobbered by a stale preloaded state
     await update((s) => {
       const pattern = probe.host ? patternForHost(s, probe.host) : null;

@@ -155,7 +155,7 @@
   "minutesShort": {
     "message": "мин"
   },
-  "unblockFailed": {
+  "passFailed": {
     "message": "Не удалось снять комендантский час. Попробуйте перезагрузить страницу."
   },
   "challengeTitle": {

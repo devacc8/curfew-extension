@@ -248,7 +248,7 @@ async function renderProtection() {
   els.protectStatus.className = on ? "status-on" : "status-off";
   els.protectToggle.textContent = on ? msg("protectDisable") : msg("protectEnable");
   if (document.activeElement !== els.passesLimit) {
-    els.passesLimit.value = String(state.config.unblockPassesPerDay);
+    els.passesLimit.value = String(state.config.passesPerDay);
   }
 }
 
@@ -268,7 +268,7 @@ els.protectToggle.addEventListener("click", async () => {
 });
 
 els.passesLimit.addEventListener("change", async () => {
-  const previous = (await load()).config.unblockPassesPerDay;
+  const previous = (await load()).config.passesPerDay;
   const value = Math.max(0, Math.min(99, Number(els.passesLimit.value) || 0));
   const apply = async () => {
     await mutate("passes.set", { value });

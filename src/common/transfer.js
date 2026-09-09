@@ -16,7 +16,7 @@ export function encodeExport(state, exportedAt) {
 
 /**
  * Parse and validate an export file into importable state.
- * Machine-local fields (live session, unblock windows, day overrides) are
+ * Machine-local fields (live session, pass windows, day overrides) are
  * never imported; unknown/newer schemas are resolved by migrate().
  */
 export function decodeExport(text) {

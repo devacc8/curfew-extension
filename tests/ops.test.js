@@ -109,7 +109,7 @@ test("state.import migrates the payload and prunes old days", () => {
   const days = {};
   for (let i = 0; i < 61; i++) {
     const key = `2026-01-${String(i + 1).padStart(2, "0")}`;
-    days[key] = { patternSeconds: {}, unblocks: {}, bySite: {} };
+    days[key] = { patternSeconds: {}, passes: {}, bySite: {} };
   }
   const result = applyOp(state, "state.import", {
     imported: { schema: 1, config: { items: [{ id: "u1", pattern: "a.com" }] }, usage: { days } },

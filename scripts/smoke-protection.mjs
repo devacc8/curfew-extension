@@ -121,8 +121,8 @@ try {
         config: {
           masterEnabled: true,
           graceSeconds: 10,
-          unblockMinutes: 15,
-          unblockPassesPerDay: 3,
+          passMinutes: 15,
+          passesPerDay: 3,
           items: [
             {
               id: "evil",
@@ -230,21 +230,21 @@ try {
       config: {
         masterEnabled: true,
         graceSeconds: 10,
-        unblockMinutes: 15,
-        unblockPassesPerDay: 3,
+        passMinutes: 15,
+        passesPerDay: 3,
         items: [item],
       },
       usage: {
         days: {
           [day]: {
             patternSeconds: { "e2e-curfew.test": 25 * 60 },
-            unblocks: { "e2e-curfew.test": 2 },
+            passes: { "e2e-curfew.test": 2 },
             bySite: {},
           },
         },
       },
       session: null,
-      runtime: { unblockUntil: {}, dayOverrides: {}, lastRolloverDay: day },
+      runtime: { passUntil: {}, dayOverrides: {}, lastRolloverDay: day },
       settings: { version: 1, itemSeq: 9001, protection: null },
     };
     const write = (state) =>
@@ -257,7 +257,7 @@ try {
     const ruleWithPasses = await hasRule();
 
     const noPasses = JSON.parse(JSON.stringify(base));
-    noPasses.usage.days[day].unblocks = {};
+    noPasses.usage.days[day].passes = {};
     await write(noPasses);
     await chrome.runtime.sendMessage({ type: "flush" });
     const ruleWithoutPasses = await hasRule();
@@ -292,15 +292,15 @@ try {
       config: {
         masterEnabled: true,
         graceSeconds: 10,
-        unblockMinutes: 15,
-        unblockPassesPerDay: 3,
+        passMinutes: 15,
+        passesPerDay: 3,
         items: [item],
       },
       usage: {
         days: {
           [day]: {
             patternSeconds: { "e2e-stale.test": 24 * 60 },
-            unblocks: {},
+            passes: {},
             bySite: {},
           },
         },
@@ -311,7 +311,7 @@ try {
         phaseStartedAt: now - 120_000,
         lastTickAt: now - 120_000,
       },
-      runtime: { unblockUntil: {}, dayOverrides: {}, lastRolloverDay: day },
+      runtime: { passUntil: {}, dayOverrides: {}, lastRolloverDay: day },
       settings: { version: 1, itemSeq: 9002, protection: null },
     };
     await new Promise((res) => chrome.storage.local.set({ curfew: state }, res));
@@ -351,23 +351,23 @@ try {
       config: {
         masterEnabled: true,
         graceSeconds: 10,
-        unblockMinutes: 15,
-        unblockPassesPerDay: 3,
+        passMinutes: 15,
+        passesPerDay: 3,
         items: [item],
       },
-      usage: { days: { [day]: { patternSeconds: {}, unblocks: {}, bySite: {} } } },
+      usage: { days: { [day]: { patternSeconds: {}, passes: {}, bySite: {} } } },
       session: null,
-      runtime: { unblockUntil: {}, dayOverrides: {}, lastRolloverDay: day },
+      runtime: { passUntil: {}, dayOverrides: {}, lastRolloverDay: day },
       settings: { version: 1, itemSeq: 9003, protection: null },
     };
     await new Promise((res) => chrome.storage.local.set({ curfew: state }, res));
 
     const first = await chrome.runtime.sendMessage({
-      type: "unblock:request",
+      type: "pass:request",
       itemId: item.id,
     });
     const second = await chrome.runtime.sendMessage({
-      type: "unblock:request",
+      type: "pass:request",
       itemId: item.id,
     });
     const after = await new Promise((res) =>
@@ -376,7 +376,7 @@ try {
     return {
       firstOk: Boolean(first?.ok),
       secondOk: Boolean(second?.ok),
-      passes: after?.usage?.days?.[day]?.unblocks?.["e2e-burn.test"] ?? 0,
+      passes: after?.usage?.days?.[day]?.passes?.["e2e-burn.test"] ?? 0,
     };
   });
   console.log("double stay-anyway:", JSON.stringify(doubleBurn));
@@ -452,15 +452,15 @@ try {
       config: {
         masterEnabled: true,
         graceSeconds: 10,
-        unblockMinutes: 15,
-        unblockPassesPerDay: 3,
+        passMinutes: 15,
+        passesPerDay: 3,
         items: [item],
       },
       usage: {
         days: {
           [day]: {
             patternSeconds: { [host]: 4 * 60 },
-            unblocks: {},
+            passes: {},
             bySite: {},
           },
         },
@@ -471,7 +471,7 @@ try {
         phaseStartedAt: now - 1000,
         lastTickAt: now,
       },
-      runtime: { unblockUntil: {}, dayOverrides: {}, lastRolloverDay: day },
+      runtime: { passUntil: {}, dayOverrides: {}, lastRolloverDay: day },
       settings: { version: 1, itemSeq: 9010, protection: null },
     };
     await new Promise((res) => chrome.storage.local.set({ curfew: state }, res));
@@ -508,11 +508,11 @@ try {
       config: {
         masterEnabled: true,
         graceSeconds: 10,
-        unblockMinutes: 15,
-        unblockPassesPerDay: 3,
+        passMinutes: 15,
+        passesPerDay: 3,
         items: [item],
       },
-      usage: { days: { [day]: { patternSeconds: {}, unblocks: {}, bySite: {} } } },
+      usage: { days: { [day]: { patternSeconds: {}, passes: {}, bySite: {} } } },
       session: {
         pattern: host,
         phase: "counting",
@@ -521,7 +521,7 @@ try {
         activeMs: 2 * 60_000,
       },
       runtime: {
-        unblockUntil: {},
+        passUntil: {},
         cooldownUntil: {},
         dayOverrides: {},
         lastRolloverDay: day,
@@ -582,14 +582,14 @@ try {
             config: {
               masterEnabled: true,
               graceSeconds: 10,
-              unblockMinutes: 15,
-              unblockPassesPerDay: 3,
+              passMinutes: 15,
+              passesPerDay: 3,
               items: [item],
             },
-            usage: { days: { [day]: { patternSeconds: {}, unblocks: {}, bySite: {} } } },
+            usage: { days: { [day]: { patternSeconds: {}, passes: {}, bySite: {} } } },
             session: null,
             runtime: {
-              unblockUntil: {},
+              passUntil: {},
               cooldownUntil: {},
               dayOverrides: {},
               lastRolloverDay: day,

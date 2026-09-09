@@ -155,7 +155,7 @@
   "minutesShort": {
     "message": "min"
   },
-  "unblockFailed": {
+  "passFailed": {
     "message": "Could not lift the curfew. Try reloading this page."
   },
   "challengeTitle": {

@@ -45,7 +45,7 @@ test("docs schema sample documents every field the code writes", () => {
 
   const dayRow = migrate({
     schema: 1,
-    usage: { days: { "2026-09-02": { patternSeconds: {}, unblocks: {}, bySite: {} } } },
+    usage: { days: { "2026-09-02": { patternSeconds: {}, passes: {}, bySite: {} } } },
   }).usage.days["2026-09-02"];
   assertDocumented(dayRow, sample.usage.days["2026-09-02"], "usage.days[row]");
 

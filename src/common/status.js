@@ -5,7 +5,7 @@ import {
   effectiveBudgetSeconds,
   passBonusSeconds,
   secondsUsedToday,
-  unblockWindowActive,
+  passWindowActive,
 } from "./budget.js";
 
 /**
@@ -26,11 +26,11 @@ import {
  */
 export function closeReason(state, item, day, nowMs) {
   if (item.access !== "granted") return null;
-  if (unblockWindowActive(state, item.pattern, nowMs)) return null;
+  if (passWindowActive(state, item.pattern, nowMs)) return null;
   const override = state.runtime.dayOverrides?.[item.pattern];
   if (override && override.day === day) return override.action === "allow" ? null : "override";
   if (cooldownActive(state, item.pattern, nowMs)) return "cooldown";
-  const bonus = passBonusSeconds(state, item.pattern, day, state.config?.unblockMinutes);
+  const bonus = passBonusSeconds(state, item.pattern, day, state.config?.passMinutes);
   return decide(
     item,
     secondsUsedToday(state, item.pattern, day),
@@ -65,7 +65,7 @@ export function describeItem(state, item, nowMs) {
   const extrapolatedMs =
     sameSession && session.phase === "counting" ? Math.max(0, nowMs - session.lastTickAt) : 0;
   const used = secondsUsedToday(state, item.pattern, day) + extrapolatedMs / 1000;
-  const effective = effectiveBudgetSeconds(item, state, day, state.config.unblockMinutes);
+  const effective = effectiveBudgetSeconds(item, state, day, state.config.passMinutes);
   const coolingUntil = state.runtime.cooldownUntil?.[item.pattern];
   const cooling = Number.isFinite(coolingUntil) && coolingUntil > nowMs;
   const reason = closeReason(state, item, day, nowMs);

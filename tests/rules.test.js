@@ -16,7 +16,7 @@ function state(over = {}) {
   return {
     config: {
       masterEnabled: true,
-      unblockMinutes: 15,
+      passMinutes: 15,
       items: [
         {
           id: "u1",
@@ -29,7 +29,7 @@ function state(over = {}) {
       ],
     },
     usage: { days: {} },
-    runtime: { unblockUntil: {}, dayOverrides: {} },
+    runtime: { passUntil: {}, dayOverrides: {} },
     ...over,
   };
 }
@@ -39,7 +39,7 @@ const used = (sec) => ({
     days: {
       [DAY]: {
         patternSeconds: { "*.reddit.com": sec },
-        unblocks: {},
+        passes: {},
         bySite: { "reddit.com": sec },
       },
     },
@@ -57,7 +57,7 @@ test("isOpen: closed at the budget boundary", () => {
 
 test("isOpen: burned passes extend the enforcement budget", () => {
   const s = { ...state(), ...used(30 * 60) };
-  s.usage.days[DAY].unblocks["*.reddit.com"] = 2; // 30 min base + 2 × 15 = 60
+  s.usage.days[DAY].passes["*.reddit.com"] = 2; // 30 min base + 2 × 15 = 60
   assert.equal(isOpen(s, s.config.items[0], DAY, NOW), true);
 
   s.usage.days[DAY].patternSeconds["*.reddit.com"] = 60 * 60 - 1;
@@ -69,7 +69,7 @@ test("isOpen: burned passes extend the enforcement budget", () => {
 
 test("isOpen: passes on another site never extend this one", () => {
   const s = { ...state(), ...used(30 * 60) };
-  s.usage.days[DAY].unblocks["*.x.com"] = 5;
+  s.usage.days[DAY].passes["*.x.com"] = 5;
   assert.equal(isOpen(s, s.config.items[0], DAY, NOW), false);
 });
 
@@ -77,7 +77,7 @@ test("isOpen: passes from another day never extend today", () => {
   const s = { ...state(), ...used(30 * 60) };
   s.usage.days["2026-09-01"] = {
     patternSeconds: {},
-    unblocks: { "*.reddit.com": 3 },
+    passes: { "*.reddit.com": 3 },
     bySite: {},
   };
   assert.equal(isOpen(s, s.config.items[0], DAY, NOW), false);
@@ -87,16 +87,16 @@ test("isOpen: a pass opens a zero-budget item for exactly one pass", () => {
   const s = state({
     config: {
       masterEnabled: true,
-      unblockMinutes: 15,
+      passMinutes: 15,
       items: [{ ...state().config.items[0], budgetMinutes: 0 }],
     },
   });
   s.usage.days = {
-    [DAY]: { patternSeconds: {}, unblocks: {}, bySite: {} },
+    [DAY]: { patternSeconds: {}, passes: {}, bySite: {} },
   };
   assert.equal(isOpen(s, s.config.items[0], DAY, NOW), false);
 
-  s.usage.days[DAY].unblocks["*.reddit.com"] = 1;
+  s.usage.days[DAY].passes["*.reddit.com"] = 1;
   assert.equal(isOpen(s, s.config.items[0], DAY, NOW), true);
 
   s.usage.days[DAY].patternSeconds["*.reddit.com"] = 15 * 60;
@@ -123,12 +123,12 @@ test("isOpen: zero budget is immediately closed", () => {
   assert.equal(isOpen(s, s.config.items[0], DAY, NOW), false);
 });
 
-test("isOpen: active unblock window keeps the site open, expired does not", () => {
+test("isOpen: active pass window keeps the site open, expired does not", () => {
   const s = { ...state(), ...used(30 * 60) };
-  s.runtime.unblockUntil["*.reddit.com"] = NOW + 60_000;
+  s.runtime.passUntil["*.reddit.com"] = NOW + 60_000;
   assert.equal(isOpen(s, s.config.items[0], DAY, NOW), true);
 
-  s.runtime.unblockUntil["*.reddit.com"] = NOW - 1;
+  s.runtime.passUntil["*.reddit.com"] = NOW - 1;
   assert.equal(isOpen(s, s.config.items[0], DAY, NOW), false);
 });
 
@@ -160,16 +160,16 @@ test("isOpen: overrides for another day are ignored", () => {
   assert.equal(isOpen(s, s.config.items[0], DAY, NOW), true);
 });
 
-test("isOpen: an active unblock window wins over a block override", () => {
+test("isOpen: an active pass window wins over a block override", () => {
   const s = state();
-  s.runtime.unblockUntil["*.reddit.com"] = NOW + 60_000;
+  s.runtime.passUntil["*.reddit.com"] = NOW + 60_000;
   s.runtime.dayOverrides["*.reddit.com"] = { day: DAY, action: "block" };
   assert.equal(isOpen(s, s.config.items[0], DAY, NOW), true);
 });
 
-test("isOpen: after the unblock window expires, the block override rules again", () => {
+test("isOpen: after the pass window expires, the block override rules again", () => {
   const s = state();
-  s.runtime.unblockUntil["*.reddit.com"] = NOW - 1;
+  s.runtime.passUntil["*.reddit.com"] = NOW - 1;
   s.runtime.dayOverrides["*.reddit.com"] = { day: DAY, action: "block" };
   assert.equal(isOpen(s, s.config.items[0], DAY, NOW), false);
 });
@@ -228,7 +228,7 @@ test("resolvePassRequest: an already-open site never burns a pass", () => {
 
 test("resolvePassRequest: a live window is idempotent and echoes its deadline", () => {
   const s = { ...state(), ...used(30 * 60) };
-  s.runtime.unblockUntil["*.reddit.com"] = NOW + 60_000;
+  s.runtime.passUntil["*.reddit.com"] = NOW + 60_000;
   assert.deepEqual(resolvePassRequest(s, s.config.items[0], DAY, NOW, 3), {
     ok: true,
     burn: false,
@@ -246,7 +246,7 @@ test("resolvePassRequest: a closed site with passes left burns exactly one", () 
 
 test("resolvePassRequest: a closed site with no passes left is refused", () => {
   const s = { ...state(), ...used(30 * 60) };
-  s.usage.days[DAY].unblocks["*.x.com"] = 3; // global limit already spent
+  s.usage.days[DAY].passes["*.x.com"] = 3; // global limit already spent
   assert.deepEqual(resolvePassRequest(s, s.config.items[0], DAY, NOW, 3), {
     ok: false,
     reason: "limit",
@@ -274,7 +274,7 @@ test("isOpen: an active cooldown closes the site even under budget", () => {
 test("isOpen: a pass lifts the cooldown", () => {
   const s = state();
   s.runtime.cooldownUntil = { "*.reddit.com": NOW + 60_000 };
-  s.runtime.unblockUntil["*.reddit.com"] = NOW + 60_000;
+  s.runtime.passUntil["*.reddit.com"] = NOW + 60_000;
   assert.equal(isOpen(s, s.config.items[0], DAY, NOW), true);
 });
 
@@ -289,7 +289,7 @@ test("isOpen: denied access beats a cooldown (nothing to enforce)", () => {
   const denied = state({
     config: {
       masterEnabled: true,
-      unblockMinutes: 15,
+      passMinutes: 15,
       items: [{ ...state().config.items[0], access: "denied" }],
     },
   });
@@ -314,13 +314,13 @@ test("closeReason names the blocker (or null when open)", () => {
 
   const passed = state();
   passed.runtime.cooldownUntil = { "*.reddit.com": NOW + 60_000 };
-  passed.runtime.unblockUntil["*.reddit.com"] = NOW + 60_000;
+  passed.runtime.passUntil["*.reddit.com"] = NOW + 60_000;
   assert.equal(closeReason(passed, passed.config.items[0], DAY, NOW), null);
 
   const denied = state({
     config: {
       masterEnabled: true,
-      unblockMinutes: 15,
+      passMinutes: 15,
       items: [{ ...state().config.items[0], access: "denied" }],
     },
   });

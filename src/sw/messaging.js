@@ -1,9 +1,9 @@
 import { load, update } from "../common/storage.js";
 import { dayKey } from "../common/time.js";
-import { recordUnblock } from "../common/budget.js";
+import { recordPass } from "../common/budget.js";
 import { resolvePassRequest } from "../common/rules.js";
 import { applyOp } from "../common/ops.js";
-import { UNBLOCK_PREFIX } from "./reconciler.js";
+import { PASS_PREFIX } from "./reconciler.js";
 
 /**
  * Every message a page can send. The handler runs inside the worker's
@@ -16,7 +16,7 @@ export function createMessageHandler({ flushTick, reconcile, bounceClosedTabs })
   return function onMessage(message, _sender, sendResponse) {
     (async () => {
       try {
-        if (message?.type === "unblock:request") {
+        if (message?.type === "pass:request") {
           const loaded = await load();
           const item = loaded.config.items.find((i) => i.id === message.itemId);
           if (!item || item.access !== "granted") return sendResponse({ ok: false });
@@ -26,18 +26,18 @@ export function createMessageHandler({ flushTick, reconcile, bounceClosedTabs })
             item,
             day,
             Date.now(),
-            loaded.config.unblockPassesPerDay
+            loaded.config.passesPerDay
           );
           if (!decision.ok) return sendResponse({ ok: false, reason: decision.reason });
           // A stale wall asking to "stay" on an already-open site is a no-op:
           // no pass is burned, the live window (if any) is echoed back.
           if (!decision.burn) return sendResponse({ ok: true, until: decision.until });
-          const until = Date.now() + loaded.config.unblockMinutes * 60_000;
+          const until = Date.now() + loaded.config.passMinutes * 60_000;
           const state = await update((s) => {
-            s.runtime.unblockUntil[item.pattern] = until;
-            recordUnblock(s, item.pattern, day);
+            s.runtime.passUntil[item.pattern] = until;
+            recordPass(s, item.pattern, day);
           }, loaded);
-          chrome.alarms.create(UNBLOCK_PREFIX + item.ruleId, { when: until });
+          chrome.alarms.create(PASS_PREFIX + item.ruleId, { when: until });
           await reconcile(state);
           sendResponse({ ok: true, until });
         } else if (message?.type === "blockNow") {

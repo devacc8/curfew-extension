@@ -303,7 +303,7 @@ export function desiredRules(state, { day, nowMs, blockedPageFor })
 export function encodeExport(state, exportedAt)
 
 /** Parse + validate + migrate an export into importable state. Machine-local
- *  fields (session, unblock windows, day overrides) are never imported. */
+ *  fields (session, pass windows, day overrides) are never imported. */
 export function decodeExport(text)   // -> { ok, state } | { ok: false, error }
 
 /** Keep only the newest `keep` day rows (rollover + import retention). */
@@ -343,8 +343,8 @@ Extends PROJECT §4.2 — this section is authoritative.
     "config": {
       "masterEnabled": true,
       "graceSeconds": 10,
-      "unblockMinutes": 15,
-      "unblockPassesPerDay": 3,
+      "passMinutes": 15,
+      "passesPerDay": 3,
       "items": [
       {
         "id": "u1",                    // stable short id, generated once
@@ -363,7 +363,7 @@ Extends PROJECT §4.2 — this section is authoritative.
     "days": {
       "2026-09-02": {
         "patternSeconds": { "*.reddit.com": 772 },
-        "unblocks": { "*.reddit.com": 1 },   // per-pattern (dashboard-ready)
+        "passes": { "*.reddit.com": 1 },   // per-pattern (dashboard-ready)
         "bySite": { "reddit.com": 772 }      // resolved apex for display
       }
     }
@@ -378,7 +378,7 @@ Extends PROJECT §4.2 — this section is authoritative.
   },
 
   "runtime": {                         // pass windows, cooldowns, overrides, rollover
-    "unblockUntil": { "*.reddit.com": 1725274500000 },
+    "passUntil": { "*.reddit.com": 1725274500000 },
     "cooldownUntil": { "*.x.com": 1725274800000 },
     "dayOverrides": { "*.x.com": { "day": "2026-09-02", "action": "block" } },
     "lastRolloverDay": "2026-09-02"
@@ -394,9 +394,9 @@ Extends PROJECT §4.2 — this section is authoritative.
   pruned to the newest 60 entries on rollover and on import.
 - `session` is always consistent with the last flush; a missing `session`
   means "nothing was being counted".
-- `runtime.unblockUntil` entries in the past are garbage-collected on every
+- `runtime.passUntil` entries in the past are garbage-collected on every
   tick.
-- Deleting an item cascades: DNR rule removal (if closed), `unblockUntil`
+- Deleting an item cascades: DNR rule removal (if closed), `passUntil`
   entry removal; historical usage rows stay (they are facts, not config).
 
 ### 6.3 Quota math
@@ -592,7 +592,7 @@ absence of a rule = open site (positivity is structural).
 |---|---|
 | `decide()` flips to `closed` (tick, flush, event, "block now") | add rule |
 | midnight / item disabled/deleted | remove rule |
-| unblock window opens ("stay anyway") | rule absent while window open; one-shot alarm re-adds at exact expiry; every tick self-heals if the alarm was missed |
+| pass window opens ("stay anyway") | rule absent while window open; one-shot alarm re-adds at exact expiry; every tick self-heals if the alarm was missed |
 | extension updated/reloaded | `getDynamicRules()` diff vs desired set → reconcile (idempotent, never assume) |
 | worker boot | the same reconcile runs as soon as the worker starts, so a rule left over from the previous browser session is removed BEFORE a restored tab can hit it |
 | a wall that outlived its rule | the wall re-evaluates `closeReason()` on every storage change and leaves by itself — but only once `getDynamicRules()` proves the rule is gone (navigating into a live rule bounces straight back: a site <-> wall flicker). Bounded retry (~12 s), then the clickable link stays. It also states WHY it is up (budget vs cooldown vs "block now") |
@@ -609,29 +609,29 @@ exact → `regexFilter "^https?://domain\.com/"`. Both schemes covered; both
 forms tested against tricky hosts (`||x.company/` must not match
 `x.company.example`).
 
-### 9.4 Unblock window ("stay anyway")
+### 9.4 Pass window ("stay anyway")
 
 - Shown on the wall; PASS-through in protected mode — a 15-minute pass is
   PLANNED use, not a relaxation, so no challenge is asked (the global
   passes limit still applies).
-  Pressing sets `runtime.unblockUntil[pattern] = now + unblockMinutes`,
-  increments today's `unblocks[pattern]`, removes the rule, schedules the
+  Pressing sets `runtime.passUntil[pattern] = now + passMinutes`,
+  increments today's `passes[pattern]`, removes the rule, schedules the
   re-add alarm.
 - **The request is idempotent while the site is open** (`resolvePassRequest`):
   a stale wall tab or a double click on a site that is already open (live
   window, allow override, or allowance left) returns `ok` **without burning
   a pass**. Only a genuinely closed site spends one.
-- **Precedence: an active unblock window beats a "block" day override.**
+- **Precedence: an active pass window beats a "block" day override.**
   Otherwise "stay anyway" would be dead after "Block now" (a real bug
   found in testing: the counter grew 4× while the wall never lifted).
-- Global passes budget: `config.unblockPassesPerDay` (absolute; default 3,
+- Global passes budget: `config.passesPerDay` (absolute; default 3,
   0 = none) is checked in the SW (`passesLeftToday`) — permissive
   relaxation, so the options input is challenge-gated too.
-- Time spent during the unblock window **still counts** and pushes usage
+- Time spent during the pass window **still counts** and pushes usage
   past the budget — the overshoot is visible in the dashboard (honesty
   surface, PROJECT §3.5).
 - **A pass extends the day's allowance, not just the window.** `isOpen()`
-  enforces the *effective* budget — `budgetMinutes + passes × unblockMinutes`
+  enforces the *effective* budget — `budgetMinutes + passes × passMinutes`
   (`effectiveBudgetSeconds`, via `passBonusSeconds`) — so a burned pass keeps
   the site open after its 15-minute window expires, until the extended
   allowance is actually spent. The popup, the bar and the wall show that same
@@ -691,7 +691,7 @@ connection):
 | Message | From | Effect |
 |---|---|---|
 | `{type: "blockNow", itemId}` | popup | mark closed now → reconcile rules + redirect open tabs |
-| `{type: "unblock:request", itemId}` | blocked page | passes-limit check + policy (§9.4) → open window (no challenge: planned use) |
+| `{type: "pass:request", itemId}` | blocked page | passes-limit check + policy (§9.4) → open window (no challenge: planned use) |
 | `{type: "flush"}` | any page | force usage flush |
 
 UI refresh: pages subscribe to `storage.onChanged` — no polling, no push
@@ -801,7 +801,7 @@ from eroding.
 | D6 | One versioned storage key | many keys | Atomic read-modify-write; export = copy one value |
 | D7 | Two alarms (tick + midnight) | tick-only with lazy rollover | Exact rollover at local midnight; lazy path kept as backstop |
 | D8 | Grace 10 s, not counted | grace 0 | Accidental navigations must not burn budget; configurable |
-| D9 | Unblock = remove rule + timed re-add | allow-rule override with priority | Fewer live rules; expiry is exact; self-heals on tick |
+| D9 | Pass = remove rule + timed re-add | allow-rule override with priority | Fewer live rules; expiry is exact; self-heals on tick |
 | D10 | Persist `session` for SW recovery | in-memory accumulator only | SW death must not double-count or lose count (§8.4) |
 | D11 | `incognito: "not_allowed"` | spanning/split | Cannot see incognito = strongest honest privacy claim; escape hatch accepted (PROJECT §3.5) |
 | D12 | `declarativeNetRequestWithHostAccess` | `declarativeNetRequest` (static warning-free block power) | Rules act only on granted hosts; matches consent model; no install warning |

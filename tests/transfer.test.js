@@ -9,8 +9,8 @@ const STATE = {
   config: {
     masterEnabled: true,
     graceSeconds: 10,
-    unblockMinutes: 15,
-    unblockPassesPerDay: 2,
+    passMinutes: 15,
+    passesPerDay: 2,
     items: [
       {
         id: "u1",
@@ -28,14 +28,14 @@ const STATE = {
     days: {
       "2026-09-01": {
         patternSeconds: { "*.reddit.com": 600 },
-        unblocks: {},
+        passes: {},
         bySite: { "reddit.com": 600 },
       },
     },
   },
   session: { pattern: "*.reddit.com", phase: "counting", phaseStartedAt: 1, lastTickAt: 2 },
   runtime: {
-    unblockUntil: { "*.reddit.com": 999 },
+    passUntil: { "*.reddit.com": 999 },
     dayOverrides: { "*.reddit.com": { day: "2026-09-01", action: "block" } },
   },
   settings: { version: 1, itemSeq: 1001, protection: null },
@@ -53,7 +53,7 @@ test("decode strips machine-local fields (session, runtime)", () => {
   const decoded = decodeExport(encodeExport(STATE, "2026-09-02T12:00:00Z"));
   assert.equal(decoded.state.session, null);
   assert.deepEqual(decoded.state.runtime, {
-    unblockUntil: {},
+    passUntil: {},
     cooldownUntil: {},
     dayOverrides: {},
   });
@@ -77,7 +77,7 @@ test("decode resolves a state written by a newer schema to current defaults", ()
   const future = { ...STATE, schema: 99 };
   const decoded = decodeExport(encodeExport(future, "2026-09-02T12:00:00Z"));
   assert.equal(decoded.ok, true);
-  assert.equal(decoded.state.schema, 1);
+  assert.equal(decoded.state.schema, 2);
   assert.deepEqual(decoded.state.config.items, []);
 });
 

@@ -8,13 +8,13 @@ import {
   clampGraceSeconds,
   clampMinutes,
   clampPassesPerDay,
-  clampUnblockMinutes,
+  clampPassMinutes,
 } from "../src/common/limits.js";
 
 test("defaults and bounds are frozen (no accidental mutation)", () => {
   assert.equal(Object.isFrozen(DEFAULTS), true);
   assert.equal(Object.isFrozen(LIMITS.budgetMinutes), true);
-  assert.equal(DEFAULTS.unblockMinutes, 15);
+  assert.equal(DEFAULTS.passMinutes, 15);
   assert.equal(MAX_CREDIT_MS, 6 * 60 * 1000);
 });
 
@@ -36,15 +36,15 @@ test("clampMinutes: session limit / cooldown default to off", () => {
 test("clampPassesPerDay: the document default, or an explicit fallback", () => {
   assert.equal(clampPassesPerDay(2.6), 3);
   assert.equal(clampPassesPerDay(1000), 99);
-  assert.equal(clampPassesPerDay("abc"), DEFAULTS.unblockPassesPerDay);
+  assert.equal(clampPassesPerDay("abc"), DEFAULTS.passesPerDay);
   // Ops pass 0: a corrupted payload must never GRANT passes.
   assert.equal(clampPassesPerDay("abc", 0), 0);
 });
 
-test("clampGraceSeconds / clampUnblockMinutes keep their own fallbacks", () => {
+test("clampGraceSeconds / clampPassMinutes keep their own fallbacks", () => {
   assert.equal(clampGraceSeconds(undefined), 10);
   assert.equal(clampGraceSeconds(-1), 0);
   assert.equal(clampGraceSeconds(10_000), 600);
-  assert.equal(clampUnblockMinutes(undefined), 15);
-  assert.equal(clampUnblockMinutes(0), 0);
+  assert.equal(clampPassMinutes(undefined), 15);
+  assert.equal(clampPassMinutes(0), 0);
 });

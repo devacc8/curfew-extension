@@ -117,19 +117,19 @@ test("simulation: a visit that never leaves is capped only by the tick cadence",
 });
 
 test("pruneRuntime drops expired windows and keeps live ones", () => {  const state = fresh();
-  state.runtime.unblockUntil = { "x.com": T0 + S, "y.com": T0 - 1 };
+  state.runtime.passUntil = { "x.com": T0 + S, "y.com": T0 - 1 };
   assert.equal(pruneRuntime(state, T0), true);
-  assert.deepEqual(state.runtime.unblockUntil, { "x.com": T0 + S });
+  assert.deepEqual(state.runtime.passUntil, { "x.com": T0 + S });
   assert.equal(pruneRuntime(state, T0), false);
 });
 
 test("applyRollover closes the day once and clears per-day runtime", () => {
   const state = fresh();
-  state.runtime.unblockUntil = { "x.com": T0 + MIN };
+  state.runtime.passUntil = { "x.com": T0 + MIN };
   state.runtime.dayOverrides = { "x.com": { day: dayKey(T0), action: "block" } };
   assert.equal(applyRollover(state, T0, 60), true);
   assert.equal(state.runtime.lastRolloverDay, dayKey(T0));
-  assert.deepEqual(state.runtime.unblockUntil, {});
+  assert.deepEqual(state.runtime.passUntil, {});
   assert.deepEqual(state.runtime.dayOverrides, {});
   assert.equal(applyRollover(state, T0 + MIN, 60), false);
 });
@@ -139,7 +139,7 @@ test("applyRollover keeps only the newest day rows", () => {
   for (let i = 0; i < 5; i++) {
     const day = new Date(T0);
     day.setDate(day.getDate() - i);
-    state.usage.days[dayKey(day)] = { patternSeconds: {}, unblocks: {}, bySite: {} };
+    state.usage.days[dayKey(day)] = { patternSeconds: {}, passes: {}, bySite: {} };
   }
   applyRollover(state, T0, 3);
   assert.equal(Object.keys(state.usage.days).length, 3);

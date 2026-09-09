@@ -5,7 +5,7 @@ import { pruneRuntime, trackTick, applyRollover } from "./common/tracking.js";
 import {
   COOLDOWN_PREFIX,
   EXHAUST,
-  UNBLOCK_PREFIX,
+  PASS_PREFIX,
   createReconciler,
 } from "./sw/reconciler.js";
 import { createTracker } from "./sw/tracker.js";
@@ -190,7 +190,7 @@ async function onAlarm(alarm) {
   const known =
     flushes ||
     alarm.name === MIDNIGHT ||
-    alarm.name.startsWith(UNBLOCK_PREFIX) ||
+    alarm.name.startsWith(PASS_PREFIX) ||
     alarm.name.startsWith(COOLDOWN_PREFIX);
   if (!known) return;
   if (flushes) await flushTick();

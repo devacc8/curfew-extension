@@ -4,11 +4,11 @@ import {
   clampGraceSeconds,
   clampMinutes,
   clampPassesPerDay,
-  clampUnblockMinutes,
+  clampPassMinutes,
 } from "./limits.js";
 
 const KEY = "curfew";
-const SCHEMA = 1;
+const SCHEMA = 2;
 
 /**
  * @typedef {object} Item
@@ -25,7 +25,7 @@ const SCHEMA = 1;
 /**
  * @typedef {object} DayRow
  * @property {Record<string, number>} patternSeconds
- * @property {Record<string, number>} unblocks
+ * @property {Record<string, number>} passes
  * @property {Record<string, number>} bySite
  */
 
@@ -41,11 +41,11 @@ const SCHEMA = 1;
 /**
  * @typedef {object} CurfewState
  * @property {number} schema
- * @property {{ masterEnabled: boolean, graceSeconds: number, unblockMinutes: number,
- *             unblockPassesPerDay: number, items: Item[] }} config
+ * @property {{ masterEnabled: boolean, graceSeconds: number, passMinutes: number,
+ *             passesPerDay: number, items: Item[] }} config
  * @property {{ days: Record<string, DayRow> }} usage
  * @property {Session | null} session
- * @property {{ unblockUntil: Record<string, number>, cooldownUntil: Record<string, number>,
+ * @property {{ passUntil: Record<string, number>, cooldownUntil: Record<string, number>,
  *              dayOverrides: Record<string, { day: string, action: "allow" | "block" }>,
  *              lastRolloverDay?: string }} runtime
  * @property {{ version: number, itemSeq: number, protection: null | { kind: string } }} settings
@@ -58,18 +58,56 @@ function defaults() {
     config: {
       masterEnabled: DEFAULTS.masterEnabled,
       graceSeconds: DEFAULTS.graceSeconds,
-      unblockMinutes: DEFAULTS.unblockMinutes,
-      unblockPassesPerDay: DEFAULTS.unblockPassesPerDay,
+      passMinutes: DEFAULTS.passMinutes,
+      passesPerDay: DEFAULTS.passesPerDay,
       items: [],
     },
     usage: { days: {} },
     session: null,
-    runtime: { unblockUntil: {}, cooldownUntil: {}, dayOverrides: {} },
+    runtime: { passUntil: {}, cooldownUntil: {}, dayOverrides: {} },
     settings: { version: 1, itemSeq: 1000, protection: null },
   };
 }
 
-const MIGRATIONS = {};
+/**
+ * Schema v1 -> v2: one word for one concept. "unblock" became "pass" everywhere
+ * (`passMinutes`, `passesPerDay`, `passUntil`, `usage.days[].passes`), so the
+ * data, the code and the UI finally agree on what a 15-minute stay is called.
+ * @param {any} state - a v1 document.
+ */
+const MIGRATIONS = {
+  1: (state) => {
+    const config = { ...(state.config ?? {}) };
+    if ("unblockMinutes" in config) {
+      config.passMinutes = config.unblockMinutes;
+      delete config.unblockMinutes;
+    }
+    if ("unblockPassesPerDay" in config) {
+      config.passesPerDay = config.unblockPassesPerDay;
+      delete config.unblockPassesPerDay;
+    }
+    const runtime = { ...(state.runtime ?? {}) };
+    if ("unblockUntil" in runtime) {
+      runtime.passUntil = runtime.unblockUntil;
+      delete runtime.unblockUntil;
+    }
+    const days = state.usage?.days ?? {};
+    const renamedDays = Object.fromEntries(
+      Object.entries(days).map(([day, row]) => {
+        if (!row || typeof row !== "object" || !("unblocks" in row)) return [day, row];
+        const { unblocks, ...rest } = row;
+        return [day, { ...rest, passes: unblocks }];
+      })
+    );
+    return {
+      ...state,
+      schema: 2,
+      config,
+      runtime,
+      usage: { ...(state.usage ?? {}), days: renamedDays },
+    };
+  },
+};
 
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -100,7 +138,7 @@ function sanitizeDays(raw) {
     if (!DAY_RE.test(day) || !row || typeof row !== "object") continue;
     out[day] = {
       patternSeconds: numberMap(row.patternSeconds),
-      unblocks: numberMap(row.unblocks),
+      passes: numberMap(row.passes),
       bySite: numberMap(row.bySite),
     };
   }
@@ -192,7 +230,7 @@ function sanitize(state) {
   };
   const runtime = {
     ...state.runtime,
-    unblockUntil: numberMap(state.runtime?.unblockUntil),
+    passUntil: numberMap(state.runtime?.passUntil),
     cooldownUntil: numberMap(state.runtime?.cooldownUntil),
     dayOverrides: sanitizeOverrides(state.runtime?.dayOverrides),
   };
@@ -204,8 +242,8 @@ function sanitize(state) {
       ...state.config,
       masterEnabled: state.config?.masterEnabled !== false,
       graceSeconds: clampGraceSeconds(state.config?.graceSeconds),
-      unblockMinutes: clampUnblockMinutes(state.config?.unblockMinutes),
-      unblockPassesPerDay: clampPassesPerDay(state.config?.unblockPassesPerDay),
+      passMinutes: clampPassMinutes(state.config?.passMinutes),
+      passesPerDay: clampPassesPerDay(state.config?.passesPerDay),
       items: sanitizeItems(state.config?.items, settings),
     },
     usage: { ...state.usage, days: sanitizeDays(state.usage?.days) },

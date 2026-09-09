@@ -69,8 +69,8 @@ export function dailyTotals(state, day) {
 }
 
 /** Is the 15-minute pass window currently live for a pattern? */
-export function unblockWindowActive(state, pattern, nowMs) {
-  const until = state?.runtime?.unblockUntil?.[pattern];
+export function passWindowActive(state, pattern, nowMs) {
+  const until = state?.runtime?.passUntil?.[pattern];
   return Number.isFinite(until) && until > nowMs;
 }
 
@@ -81,24 +81,24 @@ export function cooldownActive(state, pattern, nowMs) {
 }
 
 /** Extra allowance in seconds bought by today's passes on one pattern. */
-export function passBonusSeconds(state, pattern, day, unblockMinutes) {
-  const passes = state?.usage?.days?.[day]?.unblocks?.[pattern] ?? 0;
-  const passSeconds = Math.max(0, unblockMinutes ?? 0) * 60;
+export function passBonusSeconds(state, pattern, day, passMinutes) {
+  const passes = state?.usage?.days?.[day]?.passes?.[pattern] ?? 0;
+  const passSeconds = Math.max(0, passMinutes ?? 0) * 60;
   return passes * passSeconds;
 }
 
 /** Effective daily budget for an item: base budget extended by
- *  unblockMinutes for every pass burned on this pattern today. Passes
+ *  passMinutes for every pass burned on this pattern today. Passes
  *  extend the allowance — they never pause the accounting. */
-export function effectiveBudgetSeconds(item, state, day, unblockMinutes) {
+export function effectiveBudgetSeconds(item, state, day, passMinutes) {
   const base = Math.max(0, (item.budgetMinutes ?? 0) * 60);
-  return base + passBonusSeconds(state, item.pattern, day, unblockMinutes);
+  return base + passBonusSeconds(state, item.pattern, day, passMinutes);
 }
 
 /** Total "stay anyway" passes burned today across ALL sites. */
 export function passesUsedToday(state, day) {
-  const unblocks = state?.usage?.days?.[day]?.unblocks ?? {};
-  return Object.values(unblocks).reduce((sum, n) => sum + n, 0);
+  const passes = state?.usage?.days?.[day]?.passes ?? {};
+  return Object.values(passes).reduce((sum, n) => sum + n, 0);
 }
 
 /** Passes left today under the global limit; the limit is absolute —
@@ -123,11 +123,11 @@ export function nextExhaustionAt(state, day, nowMs) {
   const item = state?.config?.items?.find((i) => i.pattern === session.pattern);
   if (!item || !item.enabled || item.access !== "granted") return null;
   if (!state.config.masterEnabled) return null;
-  if (unblockWindowActive(state, session.pattern, nowMs)) return null;
+  if (passWindowActive(state, session.pattern, nowMs)) return null;
   const override = state.runtime?.dayOverrides?.[session.pattern];
   if (override && override.day === day) return null;
   const remaining =
-    effectiveBudgetSeconds(item, state, day, state.config.unblockMinutes) -
+    effectiveBudgetSeconds(item, state, day, state.config.passMinutes) -
     secondsUsedToday(state, session.pattern, day);
   if (remaining <= 0) return null;
   const budgetAtMs = nowMs + remaining * 1000;
@@ -223,7 +223,7 @@ export function recoveryCredit(session, nowMs, maxMs) {
 /** Create today's usage row lazily; returns the row. */
 export function ensureDayRow(state, day) {
   const days = state.usage.days;
-  if (!days[day]) days[day] = { patternSeconds: {}, unblocks: {}, bySite: {} };
+  if (!days[day]) days[day] = { patternSeconds: {}, passes: {}, bySite: {} };
   return days[day];
 }
 
@@ -237,7 +237,7 @@ export function applyCredit(state, { pattern, ms }, day) {
 }
 
 /** Count one "stay anyway" pass for a pattern. */
-export function recordUnblock(state, pattern, day) {
+export function recordPass(state, pattern, day) {
   const row = ensureDayRow(state, day);
-  row.unblocks[pattern] = (row.unblocks[pattern] ?? 0) + 1;
+  row.passes[pattern] = (row.passes[pattern] ?? 0) + 1;
 }

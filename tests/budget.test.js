@@ -17,7 +17,7 @@ import {
   cooldownActive,
   ensureDayRow,
   applyCredit,
-  recordUnblock,
+  recordPass,
 } from "../src/common/budget.js";
 
 const item = (over = {}) => ({
@@ -81,7 +81,7 @@ test("passBonusSeconds counts only this pattern's passes for the day", () => {
       days: {
         "2026-09-02": {
           patternSeconds: {},
-          unblocks: { "*.reddit.com": 2, "*.x.com": 1 },
+          passes: { "*.reddit.com": 2, "*.x.com": 1 },
           bySite: {},
         },
       },
@@ -97,7 +97,7 @@ test("secondsUsedToday reads today's row", () => {
   const state = {
     usage: {
       days: {
-        "2026-09-02": { patternSeconds: { "*.reddit.com": 772 }, unblocks: {}, bySite: {} },
+        "2026-09-02": { patternSeconds: { "*.reddit.com": 772 }, passes: {}, bySite: {} },
       },
     },
   };
@@ -234,7 +234,7 @@ test("recoveryCredit: grace and missing sessions credit nothing", () => {
 test("ensureDayRow creates the full row shape once", () => {
   const state = { usage: { days: {} } };
   const row = ensureDayRow(state, "2026-09-02");
-  assert.deepEqual(row, { patternSeconds: {}, unblocks: {}, bySite: {} });
+  assert.deepEqual(row, { patternSeconds: {}, passes: {}, bySite: {} });
   assert.equal(ensureDayRow(state, "2026-09-02"), row);
 });
 
@@ -247,11 +247,11 @@ test("applyCredit accumulates per pattern and resolved site", () => {
   assert.equal(row.bySite["reddit.com"], 2);
 });
 
-test("recordUnblock increments the daily counter", () => {
+test("recordPass increments the daily counter", () => {
   const state = { usage: { days: {} } };
-  recordUnblock(state, "*.x.com", "2026-09-02");
-  recordUnblock(state, "*.x.com", "2026-09-02");
-  assert.equal(state.usage.days["2026-09-02"].unblocks["*.x.com"], 2);
+  recordPass(state, "*.x.com", "2026-09-02");
+  recordPass(state, "*.x.com", "2026-09-02");
+  assert.equal(state.usage.days["2026-09-02"].passes["*.x.com"], 2);
 });
 
 test("dailyTotals sorts sites by time and sums the total", () => {
@@ -260,7 +260,7 @@ test("dailyTotals sorts sites by time and sums the total", () => {
       days: {
         "2026-09-02": {
           patternSeconds: {},
-          unblocks: {},
+          passes: {},
           bySite: { "reddit.com": 600, "x.com": 1800, "news.ycombinator.com": 60 },
         },
       },
@@ -287,7 +287,7 @@ test("passesUsedToday sums passes across all sites", () => {
       days: {
         "2026-09-02": {
           patternSeconds: {},
-          unblocks: { "*.x.com": 2, "*.reddit.com": 1 },
+          passes: { "*.x.com": 2, "*.reddit.com": 1 },
           bySite: {},
         },
       },
@@ -301,7 +301,7 @@ test("passesLeftToday enforces the absolute global limit; 0 = no passes", () => 
   const state = {
     usage: {
       days: {
-        "2026-09-02": { patternSeconds: {}, unblocks: { "*.x.com": 2 }, bySite: {} },
+        "2026-09-02": { patternSeconds: {}, passes: { "*.x.com": 2 }, bySite: {} },
       },
     },
   };
@@ -356,18 +356,18 @@ test("splitCreditsAtMidnight: empty and zero-size credits vanish", () => {
 });
 
 test("effectiveBudgetSeconds: base budget alone", () => {
-  const state = { usage: { days: { "2026-09-02": { patternSeconds: {}, unblocks: {}, bySite: {} } } } };
+  const state = { usage: { days: { "2026-09-02": { patternSeconds: {}, passes: {}, bySite: {} } } } };
   const item = { budgetMinutes: 30, pattern: "*.reddit.com" };
   assert.equal(effectiveBudgetSeconds(item, state, "2026-09-02", 15), 30 * 60);
 });
 
-test("effectiveBudgetSeconds: each pass extends by unblockMinutes", () => {
+test("effectiveBudgetSeconds: each pass extends by passMinutes", () => {
   const state = {
     usage: {
       days: {
         "2026-09-02": {
           patternSeconds: {},
-          unblocks: { "*.reddit.com": 2 },
+          passes: { "*.reddit.com": 2 },
           bySite: {},
         },
       },
@@ -384,7 +384,7 @@ test("effectiveBudgetSeconds: passes on OTHER patterns do not extend", () => {
       days: {
         "2026-09-02": {
           patternSeconds: {},
-          unblocks: { "*.x.com": 5 },
+          passes: { "*.x.com": 5 },
           bySite: {},
         },
       },
@@ -400,7 +400,7 @@ test("effectiveBudgetSeconds: zero-budget item with a pass gets pass-only allowa
       days: {
         "2026-09-02": {
           patternSeconds: {},
-          unblocks: { "github.com": 1 },
+          passes: { "github.com": 1 },
           bySite: {},
         },
       },
@@ -466,16 +466,16 @@ const exState = (over = {}) => ({
   config: {
     masterEnabled: true,
     graceSeconds: 10,
-    unblockMinutes: 15,
-    unblockPassesPerDay: 3,
+    passMinutes: 15,
+    passesPerDay: 3,
     items: [item({ pattern: "*.reddit.com", budgetMinutes: 30 })],
   },
   usage: {
     days: {
-      [EX_DAY]: { patternSeconds: { "*.reddit.com": 25 * 60 }, unblocks: {}, bySite: {} },
+      [EX_DAY]: { patternSeconds: { "*.reddit.com": 25 * 60 }, passes: {}, bySite: {} },
     },
   },
-  runtime: { unblockUntil: {}, dayOverrides: {} },
+  runtime: { passUntil: {}, dayOverrides: {} },
   session: counting(),
   ...over,
 });
@@ -486,7 +486,7 @@ test("nextExhaustionAt: the deadline is now + the remaining allowance", () => {
 
 test("nextExhaustionAt: burned passes push the deadline out", () => {
   const state = exState();
-  state.usage.days[EX_DAY].unblocks["*.reddit.com"] = 2;
+  state.usage.days[EX_DAY].passes["*.reddit.com"] = 2;
   assert.equal(nextExhaustionAt(state, EX_DAY, 1000), 1000 + 35 * 60 * 1000);
 });
 
@@ -511,7 +511,7 @@ test("nextExhaustionAt: null when something else decides right now", () => {
   assert.equal(nextExhaustionAt(denied, EX_DAY, 1000), null);
 
   const windowLive = exState();
-  windowLive.runtime.unblockUntil["*.reddit.com"] = 2000;
+  windowLive.runtime.passUntil["*.reddit.com"] = 2000;
   assert.equal(nextExhaustionAt(windowLive, EX_DAY, 1000), null);
 
   const overridden = exState();

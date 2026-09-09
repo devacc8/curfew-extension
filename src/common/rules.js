@@ -19,7 +19,7 @@ export function resolvePassRequest(state, item, day, nowMs, limit) {
     return {
       ok: true,
       burn: false,
-      until: state?.runtime?.unblockUntil?.[item.pattern],
+      until: state?.runtime?.passUntil?.[item.pattern],
     };
   }
   if (passesLeftToday(state, day, limit) <= 0) return { ok: false, reason: "limit" };

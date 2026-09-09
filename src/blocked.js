@@ -66,7 +66,7 @@ async function init() {
     let response;
     try {
       response = await chrome.runtime.sendMessage({
-        type: "unblock:request",
+        type: "pass:request",
         itemId: item.id,
       });
     } catch {
@@ -79,7 +79,7 @@ async function init() {
       hintEl.textContent = msg("limitReached");
     } else {
       stayEl.disabled = false;
-      hintEl.textContent = msg("unblockFailed");
+      hintEl.textContent = msg("passFailed");
     }
   });
 }
@@ -115,7 +115,7 @@ async function refresh() {
       domainEl.textContent = domain;
     }
     stayEl.hidden = false;
-    const limit = state.config.unblockPassesPerDay;
+    const limit = state.config.passesPerDay;
     const left = passesLeftToday(state, day, limit);
     stayEl.disabled = left <= 0;
     paintCountdown();
@@ -176,7 +176,7 @@ function paintCountdown() {
   const until = status.cooling
     ? status.coolingUntil
     : nextLocalMidnight(new Date(now)).getTime();
-  const leftPasses = passesLeftToday(state, status.day, state.config.unblockPassesPerDay);
+  const leftPasses = passesLeftToday(state, status.day, state.config.passesPerDay);
   // Say WHY, not just "closed": a cooldown and a spent budget feel completely
   // different, and a mystery block is what makes people distrust the tool.
   const why =
@@ -193,7 +193,7 @@ function paintCountdown() {
 function renderUsage() {
   const day = dayKey();
   const used = secondsUsedToday(state, item.pattern, day);
-  const limit = state.config.unblockPassesPerDay;
+  const limit = state.config.passesPerDay;
   const left = passesLeftToday(state, day, limit);
 
   usedEl.textContent =

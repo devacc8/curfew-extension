@@ -17,11 +17,11 @@ const item = {
 
 function state(over = {}) {
   return {
-    config: { masterEnabled: true, unblockMinutes: 15, items: [item] },
+    config: { masterEnabled: true, passMinutes: 15, items: [item] },
     usage: {
-      days: { [DAY]: { patternSeconds: { "x.com": 8 * 60 }, unblocks: {}, bySite: {} } },
+      days: { [DAY]: { patternSeconds: { "x.com": 8 * 60 }, passes: {}, bySite: {} } },
     },
-    runtime: { unblockUntil: {}, cooldownUntil: {}, dayOverrides: {} },
+    runtime: { passUntil: {}, cooldownUntil: {}, dayOverrides: {} },
     session: null,
     ...over,
   };
@@ -58,7 +58,7 @@ test("describeItem: extrapolates the running session, enforcement does not", () 
 
 test("describeItem: passes, cooldown and overrides are visible", () => {
   const withPass = state();
-  withPass.usage.days[DAY].unblocks["x.com"] = 2;
+  withPass.usage.days[DAY].passes["x.com"] = 2;
   assert.equal(describeItem(withPass, item, NOW).effective, 600 + 30 * 60);
 
   const cooling = state();

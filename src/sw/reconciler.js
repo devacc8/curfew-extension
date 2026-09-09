@@ -6,7 +6,7 @@ import { isOpen } from "../common/status.js";
 
 /** Alarm names this module owns; the worker registers the listener. */
 export const EXHAUST = "exhaust";
-export const UNBLOCK_PREFIX = "unblock:";
+export const PASS_PREFIX = "pass:";
 export const COOLDOWN_PREFIX = "cooldown:";
 
 const BLOCKED_PAGE = "/src/blocked.html";

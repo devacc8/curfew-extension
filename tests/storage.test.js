@@ -58,11 +58,11 @@ test("migrate sanitizes a hostile shape instead of bricking consumers", () => {
   });
   assert.deepEqual(state.config.items, []);
   assert.deepEqual(state.usage.days, {});
-  assert.deepEqual(state.runtime, { unblockUntil: {}, cooldownUntil: {}, dayOverrides: {} });
+  assert.deepEqual(state.runtime, { passUntil: {}, cooldownUntil: {}, dayOverrides: {} });
   assert.equal(state.session, null);
   assert.equal(state.config.masterEnabled, true);
   assert.equal(state.config.graceSeconds, 10);
-  assert.equal(state.config.unblockMinutes, 15);
+  assert.equal(state.config.passMinutes, 15);
   assert.equal(state.settings.itemSeq, 1000);
 });
 
@@ -106,7 +106,7 @@ test("migrate coerces string day counters to numbers (no concatenation)", () => 
       days: {
         "2026-09-02": {
           patternSeconds: { "x.com": "600" },
-          unblocks: { "x.com": "2" },
+          passes: { "x.com": "2" },
           bySite: {},
         },
         "not-a-day": { patternSeconds: { "x.com": 5 } },
@@ -114,7 +114,7 @@ test("migrate coerces string day counters to numbers (no concatenation)", () => 
     },
   });
   assert.deepEqual(state.usage.days["2026-09-02"].patternSeconds, { "x.com": 600 });
-  assert.deepEqual(state.usage.days["2026-09-02"].unblocks, { "x.com": 2 });
+  assert.deepEqual(state.usage.days["2026-09-02"].passes, { "x.com": 2 });
   assert.equal(state.usage.days["not-a-day"], undefined);
 });
 
@@ -126,15 +126,15 @@ test("migrate is idempotent so load() never rewrites on every read", () => {
 test("load seeds defaults on first run", async () => {
   setChrome();
   const state = await load();
-  assert.equal(state.schema, 1);
+  assert.equal(state.schema, 2);
   assert.equal(state.config.masterEnabled, true);
   assert.equal(state.config.graceSeconds, 10);
-  assert.equal(state.config.unblockMinutes, 15);
-  assert.equal(state.config.unblockPassesPerDay, 3);
+  assert.equal(state.config.passMinutes, 15);
+  assert.equal(state.config.passesPerDay, 3);
   assert.deepEqual(state.config.items, []);
   assert.deepEqual(state.usage, { days: {} });
   assert.equal(state.session, null);
-  assert.deepEqual(state.runtime, { unblockUntil: {}, cooldownUntil: {}, dayOverrides: {} });
+  assert.deepEqual(state.runtime, { passUntil: {}, cooldownUntil: {}, dayOverrides: {} });
   assert.equal(state.settings.itemSeq, 1000);
   assert.equal(state.settings.protection, null);
 });
@@ -146,8 +146,8 @@ test("load persists the seeded state", async () => {
   assert.deepEqual(second.config, {
     masterEnabled: true,
     graceSeconds: 10,
-    unblockMinutes: 15,
-    unblockPassesPerDay: 3,
+    passMinutes: 15,
+    passesPerDay: 3,
     items: [],
   });
 });
@@ -163,7 +163,7 @@ test("regression: a page-style concise mutator must not replace the state", asyn
   setChrome();
   await update((state) => upsertItem(state, { pattern: "x.com", budgetMinutes: 30 }));
   const state = await load();
-  assert.equal(state.schema, 1);
+  assert.equal(state.schema, 2);
   assert.equal(state.config.items.length, 1);
   assert.equal(state.config.items[0].pattern, "x.com");
   assert.deepEqual(state.usage, { days: {} });
@@ -234,10 +234,10 @@ test("migrate fills missing top-level keys", async () => {
   const partial = { schema: 1, config: { items: [{ id: "u0", pattern: "a.com" }] } };
   await update((s) => Object.assign(s, partial));
   const state = await load();
-  assert.equal(state.schema, 1);
+  assert.equal(state.schema, 2);
   assert.equal(state.config.items.length, 1);
   assert.deepEqual(state.usage, { days: {} });
-  assert.deepEqual(state.runtime, { unblockUntil: {}, cooldownUntil: {}, dayOverrides: {} });
+  assert.deepEqual(state.runtime, { passUntil: {}, cooldownUntil: {}, dayOverrides: {} });
   assert.equal(state.session, null);
 });
 
@@ -245,7 +245,7 @@ test("migrate resets a state written by a newer schema", async () => {
   setChrome();
   await update((s) => Object.assign(s, { schema: 99, future: true }));
   const state = await load();
-  assert.equal(state.schema, 1);
+  assert.equal(state.schema, 2);
   assert.deepEqual(state.config.items, []);
   assert.equal(state.future, undefined);
 });
@@ -287,4 +287,34 @@ test("mutate returns null when the worker refuses the op", async () => {
   const stub = setChrome();
   stub.api.runtime.sendMessage = async () => ({ ok: false });
   assert.equal(await mutate("nope", {}), null);
+});
+
+test("migrate v1 -> v2 renames the pass vocabulary", () => {
+  const v1 = {
+    schema: 1,
+    config: {
+      masterEnabled: true,
+      graceSeconds: 10,
+      unblockMinutes: 15,
+      unblockPassesPerDay: 3,
+      items: [{ id: "u1", ruleId: 1001, pattern: "x.com", budgetMinutes: 25, enabled: true, access: "granted" }],
+    },
+    usage: {
+      days: {
+        "2026-09-08": { patternSeconds: { "x.com": 600 }, unblocks: { "x.com": 2 }, bySite: { "x.com": 600 } },
+      },
+    },
+    runtime: { unblockUntil: { "x.com": 123 }, dayOverrides: {} },
+  };
+  const state = migrate(v1);
+  assert.equal(state.schema, 2);
+  assert.equal(state.config.passMinutes, 15);
+  assert.equal(state.config.passesPerDay, 3);
+  assert.equal(state.config.unblockMinutes, undefined);
+  assert.equal(state.config.unblockPassesPerDay, undefined);
+  assert.deepEqual(state.runtime.passUntil, { "x.com": 123 });
+  assert.equal(state.runtime.unblockUntil, undefined);
+  assert.deepEqual(state.usage.days["2026-09-08"].passes, { "x.com": 2 });
+  assert.equal(state.usage.days["2026-09-08"].unblocks, undefined);
+  assert.equal(state.usage.days["2026-09-08"].patternSeconds["x.com"], 600);
 });

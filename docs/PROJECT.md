@@ -79,7 +79,7 @@ budget.
 ### 3.3 Blocking
 - When the budget is exhausted → the tab is redirected to the **Curfew
   page** (`blocked.html`): shows the domain, the time spent today, and a
-  "stay anyway" button ONLY inside a 15-minute unblock window with an
+  "stay anyway" button ONLY inside a 15-minute pass window with an
   honest counter (see §3.5).
 - Redirect is request-level (declarativeNetRequest, see §4.4): no flash
   of the site, browser-enforced even when the service worker is asleep.
@@ -167,8 +167,8 @@ SW restarts on events):
 
 ### 4.2 Data model (storage.local, versioned under one key)
 
-> Orientation copy. The authoritative schema (per-pattern `unblocks`,
-> `session` for SW-restart recovery, `runtime` for unblock windows) is
+> Orientation copy. The authoritative schema (per-pattern `passes`,
+> `session` for SW-restart recovery, `runtime` for pass windows) is
 > tech doc §6.1.
 ```jsonc
 {
@@ -176,7 +176,7 @@ SW restarts on events):
   "config": {
     "masterEnabled": true,
     "graceSeconds": 10,
-    "unblockMinutes": 15,
+    "passMinutes": 15,
     "items": [
       { "id": "u1", "pattern": "*.reddit.com",
         "budgetMinutes": 30, "enabled": true }
@@ -188,7 +188,7 @@ SW restarts on events):
     "days": {
       "2026-09-02": {
         "patternSeconds": { "*.reddit.com": 772 },
-        "unblocks": 1,
+        "passes": 1,
         "bySite": { "reddit.com": 772 }   // resolved site for dashboard
       }
     }
@@ -278,7 +278,7 @@ your browser. Uninstall = gone."
 |---|---|---|
 | **M0** | Skeleton: manifest v3 (§4.3 permission set), popup w/ add-current-tab, options page w/ pattern+budget editor, local storage wrapper | loads unpacked; add `x.com` → permission prompt → appears in both pages; no crashes |
 | **M1** | Tracker + quota + interstitial | 10 min on reddit → wall at budget-0; grace does not count; idle pauses counting; midnight reset; "add side note" not yet |
-| **M2** | Dashboard (daily totals, per-site bars, unblock counter) + export/import + usage pruning | popup shows yesterday vs today; export→import round-trip |
+| **M2** | Dashboard (daily totals, per-site bars, pass counter) + export/import + usage pruning | popup shows yesterday vs today; export→import round-trip |
 | **M3** | Store package: icons, screenshots (3), privacy policy page, listing copy, review checklist (permissions, offstore repo, no tracking), publish | appears in store, installs, works |
 | **M4+** | Ideas: weekday-aware budgets; path rules; per-site "blocked until" button; optional sync via file; Firefox WebExtension port; stats export CSV |
 
@@ -296,7 +296,7 @@ v1 = M0..M2 as the personal product; M3 once you are happy.
 3. **Pure logic separate from chrome APIs** (`common/*` has no chrome
    import) — `node --test` covers time/day/pattern/budget decision; a
    DOM/db harness is not needed for v1.
-4. **Honesty surfaces**: the "stay anyway" button, the unblock counter,
+4. **Honesty surfaces**: the "stay anyway" button, the pass counter,
    the "extension can be disabled by design" note in the README. No
    fake-hard-to-get-around; the feedback loop is the product.
 5. **New features only if they survive the "would I still use this in a

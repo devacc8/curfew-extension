@@ -129,7 +129,7 @@ export function applySessionLimit(state, nowMs) {
  *  left. */
 export function pruneRuntime(state, nowMs) {
   let changed = false;
-  for (const map of [state.runtime.unblockUntil, state.runtime.cooldownUntil]) {
+  for (const map of [state.runtime.passUntil, state.runtime.cooldownUntil]) {
     for (const [pattern, until] of Object.entries(map)) {
       if (!(until > nowMs)) {
         delete map[pattern];
@@ -146,7 +146,7 @@ export function applyRollover(state, nowMs, keepDays) {
   const today = dayKey(nowMs);
   if (state.runtime.lastRolloverDay === today) return false;
   pruneDays(state, keepDays);
-  state.runtime.unblockUntil = {};
+  state.runtime.passUntil = {};
   state.runtime.cooldownUntil = {};
   state.runtime.dayOverrides = {};
   state.runtime.lastRolloverDay = today;

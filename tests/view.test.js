@@ -33,11 +33,11 @@ const item = {
 
 function state(over = {}) {
   return {
-    config: { masterEnabled: true, unblockMinutes: 15, items: [item] },
+    config: { masterEnabled: true, passMinutes: 15, items: [item] },
     usage: {
-      days: { [DAY]: { patternSeconds: { "x.com": 8 * 60 }, unblocks: {}, bySite: {} } },
+      days: { [DAY]: { patternSeconds: { "x.com": 8 * 60 }, passes: {}, bySite: {} } },
     },
-    runtime: { unblockUntil: {}, cooldownUntil: {}, dayOverrides: {} },
+    runtime: { passUntil: {}, cooldownUntil: {}, dayOverrides: {} },
     session: {
       pattern: "x.com",
       phase: "counting",
@@ -74,7 +74,7 @@ test("formatClock: one formatter, two rounding modes", () => {
 
 test("rowViewModel: usage ticks with the running session", () => {
   const s = state({
-    usage: { days: { [DAY]: { patternSeconds: { "x.com": 580 }, unblocks: {}, bySite: {} } } },
+    usage: { days: { [DAY]: { patternSeconds: { "x.com": 580 }, passes: {}, bySite: {} } } },
   });
   const first = rowViewModel(s, item, NOW);
   const later = rowViewModel(s, item, NOW + 5000);
@@ -100,7 +100,7 @@ test("rowViewModel: burned passes raise the effective budget", () => {
   const s = state({
     usage: {
       days: {
-        [DAY]: { patternSeconds: { "x.com": 8 * 60 }, unblocks: { "x.com": 2 }, bySite: {} },
+        [DAY]: { patternSeconds: { "x.com": 8 * 60 }, passes: { "x.com": 2 }, bySite: {} },
       },
     },
   });
@@ -109,7 +109,7 @@ test("rowViewModel: burned passes raise the effective budget", () => {
 
 test("remainingText: cooldown counts down, closed says closed", () => {
   const s = state({
-    runtime: { unblockUntil: {}, cooldownUntil: { "x.com": NOW + 45_000 }, dayOverrides: {} },
+    runtime: { passUntil: {}, cooldownUntil: { "x.com": NOW + 45_000 }, dayOverrides: {} },
   });
   const vm = rowViewModel(s, item, NOW);
   assert.equal(vm.open, false);

@@ -119,13 +119,13 @@ function buildRow(item, state) {
 
   line2.append(badge);
 
-  const passes = state.usage.days[dayKey(now)]?.unblocks?.[item.pattern] ?? 0;
+  const passes = state.usage.days[dayKey(now)]?.passes?.[item.pattern] ?? 0;
   if (passes > 0) {
     const chip = document.createElement("span");
     chip.className = "badge passes";
     // Read the configured pass length: a hardcoded 15 would lie the moment
-    // unblockMinutes changes (it is a stored config value, not a constant).
-    chip.textContent = `${passes}×${state.config.unblockMinutes}${msg("minutesShort")}`;
+    // passMinutes changes (it is a stored config value, not a constant).
+    chip.textContent = `${passes}×${state.config.passMinutes}${msg("minutesShort")}`;
     chip.title = msg("passesTodayLabel");
     line2.append(chip);
   }

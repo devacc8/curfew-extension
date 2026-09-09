@@ -9,8 +9,8 @@
 export const DEFAULTS = Object.freeze({
   masterEnabled: true,
   graceSeconds: 10,
-  unblockMinutes: 15,
-  unblockPassesPerDay: 3,
+  passMinutes: 15,
+  passesPerDay: 3,
   budgetMinutes: 30,
   sessionLimitMinutes: 0,
   cooldownMinutes: 0,
@@ -47,14 +47,14 @@ export function clampNumber(value, bounds, fallback) {
 export const clampBudgetMinutes = (value) =>
   clampNumber(value, LIMITS.budgetMinutes, DEFAULTS.budgetMinutes);
 export const clampMinutes = (value) => clampNumber(value, LIMITS.minutes, 0);
-export const clampUnblockMinutes = (value) =>
-  clampNumber(value, LIMITS.minutes, DEFAULTS.unblockMinutes);
+export const clampPassMinutes = (value) =>
+  clampNumber(value, LIMITS.minutes, DEFAULTS.passMinutes);
 /**
  * @param {unknown} value
  * @param {number} [fallback] - defaults to the documented default for a fresh
  *   document; mutating ops pass 0 so junk can never GRANT passes.
  */
-export const clampPassesPerDay = (value, fallback = DEFAULTS.unblockPassesPerDay) =>
+export const clampPassesPerDay = (value, fallback = DEFAULTS.passesPerDay) =>
   clampNumber(value, LIMITS.passesPerDay, fallback);
 export const clampGraceSeconds = (value) =>
   clampNumber(value, LIMITS.graceSeconds, DEFAULTS.graceSeconds);

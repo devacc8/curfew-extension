@@ -82,8 +82,8 @@ const OPS = {
   },
 
   "passes.set": (state, { value }) => {
-    state.config.unblockPassesPerDay = clampPassesPerDay(value, 0);
-    return { value: state.config.unblockPassesPerDay };
+    state.config.passesPerDay = clampPassesPerDay(value, 0);
+    return { value: state.config.passesPerDay };
   },
 
   /** Willpower Protection config, or null to switch it off. */
