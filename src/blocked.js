@@ -101,15 +101,10 @@ async function refresh() {
     stayEl.hidden = true;
     passesEl.hidden = true;
     // A wall can outlive its rule (the browser restored the tab before the
-    // service worker reconciled at boot). Get out of the user's way instead
-    // of asking them to click.
-    if (!leaving) {
-      leaving = true;
-      setTimeout(() => {
-        if (isOpen(state, item, day, Date.now())) location.href = `https://${domain}/`;
-        else leaving = false;
-      }, 1200);
-    }
+    // service worker reconciled at boot). Get out of the user's way — but
+    // ONLY once the enforcement rule is actually gone: navigating while it
+    // still exists bounces straight back here, and that ping-pong flickers.
+    leaveIfStale();
   } else {
     if (domainEl.querySelector("a")) {
       domainEl.textContent = domain;
@@ -131,6 +126,42 @@ function formatWait(ms) {
   if (h > 0) return `${h}${msg("hoursShort")}${m}${msg("minutesShort")}`;
   if (m > 0) return `${m}${msg("minutesShort")} ${s}${msg("secondsShort")}`;
   return `${s}${msg("secondsShort")}`;
+}
+
+/** Is the enforcement rule for this item still installed? */
+async function ruleGone() {
+  try {
+    const rules = await chrome.declarativeNetRequest.getDynamicRules();
+    return !rules.some((rule) => rule.id === item.ruleId);
+  } catch {
+    // Cannot prove it is gone -> do not navigate.
+    return false;
+  }
+}
+
+/**
+ * Leave a stale wall, but only when both hold: enforcement now considers the
+ * site open AND its DNR rule has been removed. Without the second check the
+ * page navigates into a rule that redirects it right back — an endless
+ * site <-> wall flicker. The page's init flush triggers a reconcile first, so
+ * a stale rule is normally gone by the time this runs.
+ */
+async function leaveIfStale() {
+  if (leaving || !item || !state) return;
+  leaving = true;
+  // Bounded retry, never a hot loop: the rule is normally removed by the
+  // reconcile our init flush triggers, but a slow one must not strand the
+  // user. Give up after ~12 s and leave the clickable link in place.
+  for (let attempt = 0; attempt < 15; attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    const now = Date.now();
+    if (!isOpen(state, item, dayKey(now), now)) break;
+    if (await ruleGone()) {
+      location.href = `https://${domain}/`;
+      return;
+    }
+  }
+  leaving = false;
 }
 
 /** Repaint the "returns in" line once a second: a cooldown deadline if one is

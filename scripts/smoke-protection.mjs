@@ -611,17 +611,48 @@ try {
       ],
     });
   }, siteHost);
+  // Count navigations: a redirect loop (site <-> wall) shows up as a storm.
+  let navigations = 0;
+  const countNav = (frame) => {
+    if (frame === page.mainFrame()) navigations += 1;
+  };
+  page.on("framenavigated", countNav);
   await page.goto(`chrome-extension://${extensionId}/src/blocked.html?domain=${siteHost}`, {
     waitUntil: "domcontentloaded",
   });
-  await sleep(2500);
+  // Keep re-planting the stale rule for a while: the wall must refuse to
+  // navigate while it exists, then leave exactly once when it is gone.
+  for (let i = 0; i < 10; i++) {
+    await helper.evaluate(async (host) => {
+      await chrome.declarativeNetRequest.updateDynamicRules({
+        removeRuleIds: [9020],
+        addRules: [
+          {
+            id: 9020,
+            priority: 1,
+            action: { type: "redirect", redirect: { extensionPath: "/src/blocked.html" } },
+            condition: { urlFilter: `||${host}/`, resourceTypes: ["main_frame"] },
+          },
+        ],
+      });
+    }, siteHost);
+    await sleep(300);
+  }
+  // Now let the worker reconcile (the wall's own flush path): the rule goes,
+  // and the wall must leave on its own shortly after.
+  await helper.evaluate(() => chrome.runtime.sendMessage({ type: "flush" }));
+  await sleep(3500);
+  page.off("framenavigated", countNav);
   const wallUrl = page.url();
-  console.log("stale wall left to:", wallUrl);
+  console.log("stale wall left to:", wallUrl, "| navigations:", navigations);
   if (wallUrl.includes("blocked.html")) {
     console.log("FAIL: a stale wall trapped the user");
     process.exitCode = 1;
+  } else if (navigations > 4) {
+    console.log("FAIL: redirect loop (site <-> wall flicker)");
+    process.exitCode = 1;
   } else {
-    console.log("PASS: a stale wall leaves by itself");
+    console.log("PASS: a stale wall leaves by itself, without a loop");
   }
 
   await helper.close();

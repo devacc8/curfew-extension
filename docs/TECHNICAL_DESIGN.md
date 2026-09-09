@@ -582,7 +582,7 @@ absence of a rule = open site (positivity is structural).
 | unblock window opens ("stay anyway") | rule absent while window open; one-shot alarm re-adds at exact expiry; every tick self-heals if the alarm was missed |
 | extension updated/reloaded | `getDynamicRules()` diff vs desired set → reconcile (idempotent, never assume) |
 | worker boot | the same reconcile runs as soon as the worker starts, so a rule left over from the previous browser session is removed BEFORE a restored tab can hit it |
-| a wall that outlived its rule | the wall re-evaluates `closeReason()` on every storage change and leaves by itself; it also states WHY it is up (budget vs cooldown vs "block now") |
+| a wall that outlived its rule | the wall re-evaluates `closeReason()` on every storage change and leaves by itself — but only once `getDynamicRules()` proves the rule is gone (navigating into a live rule bounces straight back: a site <-> wall flicker). Bounded retry (~12 s), then the clickable link stays. It also states WHY it is up (budget vs cooldown vs "block now") |
 
 Reconciliation rule: the SW **always computes the desired rule set from
 storage** and diffs it against `chrome.declarativeNetRequest.getDynamicRules()`
