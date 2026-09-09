@@ -6,6 +6,7 @@ import {
   isSolved,
   legalTiles,
   moveTile,
+  randomMove,
   shuffledBoard,
 } from "../src/common/puzzle.js";
 
@@ -65,4 +66,36 @@ test("shuffledBoard is deterministic for a fixed rng", () => {
   const a = shuffledBoard(80, mulberry32(42));
   const b = shuffledBoard(80, mulberry32(42));
   assert.deepEqual(a, b);
+});
+
+test("randomMove never picks the tile that would undo the last move", () => {
+  const board = solvedBoard(); // blank at 15, legal tiles are 12 and 15
+  for (let seed = 1; seed <= 50; seed++) {
+    const rng = mulberry32(seed);
+    for (const previous of legalTiles(board)) {
+      for (let i = 0; i < 10; i++) {
+        assert.notEqual(randomMove(board, previous, rng), previous);
+      }
+    }
+  }
+});
+
+test("shuffledBoard stays inside the solvable parity class", () => {
+  const inversions = (board) => {
+    const tiles = board.filter((v) => v !== 0);
+    let count = 0;
+    for (let i = 0; i < tiles.length; i++) {
+      for (let j = i + 1; j < tiles.length; j++) if (tiles[i] > tiles[j]) count++;
+    }
+    return count;
+  };
+  for (let seed = 1; seed <= 30; seed++) {
+    const board = shuffledBoard(80, mulberry32(seed));
+    const rowFromBottom = SIZE - Math.floor(board.indexOf(0) / SIZE);
+    assert.equal(
+      (inversions(board) + rowFromBottom) % 2,
+      1,
+      `seed ${seed} left the solvable class`
+    );
+  }
 });
