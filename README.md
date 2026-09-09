@@ -121,7 +121,7 @@ select the `curfew-extension` folder.
 ## Development
 
 ```bash
-npm test          # eslint + unit tests (node --test)
+npm test          # eslint + tsc --noEmit + unit tests (node --test)
 npm run smoke     # E2E: real Chrome clicks through the protection flows
 npm run capture   # regenerate store screenshots + README demo gif
 npm run gen:icons # regenerate icons

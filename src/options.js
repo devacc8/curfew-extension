@@ -5,20 +5,20 @@ import { dayKey } from "./common/time.js";
 import { guarded, enableProtection, disableProtection } from "./protect.js";
 
 const els = {
-  master: document.getElementById("master"),
-  pattern: document.getElementById("pattern"),
-  minutes: document.getElementById("minutes"),
-  add: document.getElementById("add"),
-  list: document.getElementById("items"),
-  status: document.getElementById("status"),
-  export: document.getElementById("export"),
-  import: document.getElementById("import"),
-  dataStatus: document.getElementById("dataStatus"),
-  protectStatus: document.getElementById("protectStatus"),
-  protectToggle: document.getElementById("protectToggle"),
-  protectMsg: document.getElementById("protectMsg"),
-  passesLimit: document.getElementById("passesLimit"),
-  search: document.getElementById("siteSearch"),
+  master: /** @type {HTMLInputElement} */ (document.getElementById("master")),
+  pattern: /** @type {HTMLInputElement} */ (document.getElementById("pattern")),
+  minutes: /** @type {HTMLInputElement} */ (document.getElementById("minutes")),
+  add: /** @type {HTMLElement} */ (document.getElementById("add")),
+  list: /** @type {HTMLElement} */ (document.getElementById("items")),
+  status: /** @type {HTMLElement} */ (document.getElementById("status")),
+  export: /** @type {HTMLElement} */ (document.getElementById("export")),
+  import: /** @type {HTMLInputElement} */ (document.getElementById("import")),
+  dataStatus: /** @type {HTMLElement} */ (document.getElementById("dataStatus")),
+  protectStatus: /** @type {HTMLElement} */ (document.getElementById("protectStatus")),
+  protectToggle: /** @type {HTMLElement} */ (document.getElementById("protectToggle")),
+  protectMsg: /** @type {HTMLElement} */ (document.getElementById("protectMsg")),
+  passesLimit: /** @type {HTMLInputElement} */ (document.getElementById("passesLimit")),
+  search: /** @type {HTMLInputElement} */ (document.getElementById("siteSearch")),
 };
 
 let siteFilter = "";
@@ -26,14 +26,20 @@ let siteFilter = "";
 const msg = (key) => chrome.i18n.getMessage(key);
 
 function applyI18n() {
-  for (const el of document.querySelectorAll("[data-i18n]")) {
-    el.textContent = msg(el.dataset.i18n);
+  for (const el of /** @type {NodeListOf<HTMLElement>} */ (
+    document.querySelectorAll("[data-i18n]")
+  )) {
+    el.textContent = msg(el.dataset.i18n ?? "");
   }
-  for (const el of document.querySelectorAll("[data-i18n-placeholder]")) {
-    el.placeholder = msg(el.dataset.i18nPlaceholder);
+  for (const el of /** @type {NodeListOf<HTMLInputElement>} */ (
+    document.querySelectorAll("[data-i18n-placeholder]")
+  )) {
+    el.placeholder = msg(el.dataset.i18nPlaceholder ?? "");
   }
-  for (const el of document.querySelectorAll("[data-i18n-title]")) {
-    el.title = msg(el.dataset.i18nTitle);
+  for (const el of /** @type {NodeListOf<HTMLElement>} */ (
+    document.querySelectorAll("[data-i18n-title]")
+  )) {
+    el.title = msg(el.dataset.i18nTitle ?? "");
   }
 }
 
@@ -88,17 +94,17 @@ function guardedNumberField({ value, title, unit, relaxes, apply }) {
   input.className = "budget";
   input.min = "0";
   input.max = "1440";
-  input.value = value;
+  input.value = String(value);
   input.title = title;
   input.addEventListener("change", async () => {
     const next = Math.max(0, Math.min(1440, Number(input.value) || 0));
     const commit = async () => {
       await apply(next);
-      input.value = next;
+      input.value = String(next);
     };
     if (relaxes(next)) return commit();
     const done = await guarded(commit);
-    if (!done) input.value = value;
+    if (!done) input.value = String(value);
   });
   const label = document.createElement("span");
   label.className = "unit";
@@ -312,7 +318,7 @@ async function renderProtection() {
   els.protectStatus.className = on ? "status-on" : "status-off";
   els.protectToggle.textContent = on ? msg("protectDisable") : msg("protectEnable");
   if (document.activeElement !== els.passesLimit) {
-    els.passesLimit.value = state.config.unblockPassesPerDay;
+    els.passesLimit.value = String(state.config.unblockPassesPerDay);
   }
 }
 
@@ -336,11 +342,11 @@ els.passesLimit.addEventListener("change", async () => {
   const value = Math.max(0, Math.min(99, Number(els.passesLimit.value) || 0));
   const apply = async () => {
     await mutate("passes.set", { value });
-    els.passesLimit.value = value;
+    els.passesLimit.value = String(value);
   };
   if (value <= previous) return apply();
   const done = await guarded(apply);
-  if (!done) els.passesLimit.value = previous;
+  if (!done) els.passesLimit.value = String(previous);
 });
 els.export.addEventListener("click", exportData);
 

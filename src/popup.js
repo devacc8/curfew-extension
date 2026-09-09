@@ -6,30 +6,36 @@ import { dayKey, previousDayKey } from "./common/time.js";
 import { guarded } from "./protect.js";
 
 const els = {
-  master: document.getElementById("master"),
-  totalsLine: document.getElementById("totalsLine"),
-  topSection: document.getElementById("topSection"),
-  topSites: document.getElementById("topSites"),
-  list: document.getElementById("items"),
-  pattern: document.getElementById("pattern"),
-  minutes: document.getElementById("minutes"),
-  add: document.getElementById("add"),
-  status: document.getElementById("status"),
-  openOptions: document.getElementById("openOptions"),
-  addCurrent: document.getElementById("addCurrent"),
+  master: /** @type {HTMLInputElement} */ (document.getElementById("master")),
+  totalsLine: /** @type {HTMLElement} */ (document.getElementById("totalsLine")),
+  topSection: /** @type {HTMLElement} */ (document.getElementById("topSection")),
+  topSites: /** @type {HTMLElement} */ (document.getElementById("topSites")),
+  list: /** @type {HTMLElement} */ (document.getElementById("items")),
+  pattern: /** @type {HTMLInputElement} */ (document.getElementById("pattern")),
+  minutes: /** @type {HTMLInputElement} */ (document.getElementById("minutes")),
+  add: /** @type {HTMLElement} */ (document.getElementById("add")),
+  status: /** @type {HTMLElement} */ (document.getElementById("status")),
+  openOptions: /** @type {HTMLElement} */ (document.getElementById("openOptions")),
+  addCurrent: /** @type {HTMLElement} */ (document.getElementById("addCurrent")),
 };
 
 const msg = (key) => chrome.i18n.getMessage(key);
 
 function applyI18n() {
-  for (const el of document.querySelectorAll("[data-i18n]")) {
-    el.textContent = msg(el.dataset.i18n);
+  for (const el of /** @type {NodeListOf<HTMLElement>} */ (
+    document.querySelectorAll("[data-i18n]")
+  )) {
+    el.textContent = msg(el.dataset.i18n ?? "");
   }
-  for (const el of document.querySelectorAll("[data-i18n-placeholder]")) {
-    el.placeholder = msg(el.dataset.i18nPlaceholder);
+  for (const el of /** @type {NodeListOf<HTMLInputElement>} */ (
+    document.querySelectorAll("[data-i18n-placeholder]")
+  )) {
+    el.placeholder = msg(el.dataset.i18nPlaceholder ?? "");
   }
-  for (const el of document.querySelectorAll("[data-i18n-title]")) {
-    el.title = msg(el.dataset.i18nTitle);
+  for (const el of /** @type {NodeListOf<HTMLElement>} */ (
+    document.querySelectorAll("[data-i18n-title]")
+  )) {
+    el.title = msg(el.dataset.i18nTitle ?? "");
   }
 }
 

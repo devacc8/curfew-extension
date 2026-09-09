@@ -6,19 +6,22 @@
   "scripts": {
     "lint": "eslint src tests",
     "gen:icons": "node scripts/gen-icons.mjs",
-    "test": "npm run lint && node --test tests/*.test.js",
+    "test": "npm run lint && npm run typecheck && node --test tests/*.test.js",
     "smoke": "node scripts/smoke-protection.mjs",
-    "capture": "node scripts/capture.mjs"
+    "capture": "node scripts/capture.mjs",
+    "typecheck": "tsc -p tsconfig.json"
   },
   "engines": {
     "node": ">=20"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@types/chrome": "^0.2.9",
     "eslint": "^10.9.1",
     "eslint-plugin-import": "^2.32.0",
     "gifenc": "^1.0.3",
     "pngjs": "^7.0.0",
-    "puppeteer": "^25.9.0"
+    "puppeteer": "^25.9.0",
+    "typescript": "^7.0.2"
   }
 }

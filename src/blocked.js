@@ -10,15 +10,17 @@ let state = null;
 let item = null;
 const domain = new URLSearchParams(location.search).get("domain");
 
-for (const el of document.querySelectorAll("[data-i18n]")) {
-  el.textContent = msg(el.dataset.i18n);
+for (const el of /** @type {NodeListOf<HTMLElement>} */ (
+  document.querySelectorAll("[data-i18n]")
+)) {
+  el.textContent = msg(el.dataset.i18n ?? "");
 }
 
-const domainEl = document.getElementById("domain");
-const stayEl = document.getElementById("stay");
-const hintEl = document.getElementById("hint");
-const passesEl = document.getElementById("passes");
-const usedEl = document.getElementById("used");
+const domainEl = /** @type {HTMLElement} */ (document.getElementById("domain"));
+const stayEl = /** @type {HTMLButtonElement} */ (document.getElementById("stay"));
+const hintEl = /** @type {HTMLElement} */ (document.getElementById("hint"));
+const passesEl = /** @type {HTMLElement} */ (document.getElementById("passes"));
+const usedEl = /** @type {HTMLElement} */ (document.getElementById("used"));
 
 if (!domain) {
   document.getElementById("actions").hidden = true;

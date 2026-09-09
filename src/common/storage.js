@@ -1,6 +1,47 @@
 const KEY = "curfew";
 const SCHEMA = 1;
 
+/**
+ * @typedef {object} Item
+ * @property {string} id
+ * @property {number} ruleId
+ * @property {string} pattern
+ * @property {number} budgetMinutes
+ * @property {number} [sessionLimitMinutes] - 0/absent = no session cap
+ * @property {number} [cooldownMinutes] - 0/absent = no cooldown
+ * @property {boolean} enabled
+ * @property {"granted" | "denied"} access
+ */
+
+/**
+ * @typedef {object} DayRow
+ * @property {Record<string, number>} patternSeconds
+ * @property {Record<string, number>} unblocks
+ * @property {Record<string, number>} bySite
+ */
+
+/**
+ * @typedef {object} Session
+ * @property {string} pattern
+ * @property {"grace" | "counting"} phase
+ * @property {number} phaseStartedAt
+ * @property {number} lastTickAt
+ */
+
+/**
+ * @typedef {object} CurfewState
+ * @property {number} schema
+ * @property {{ masterEnabled: boolean, graceSeconds: number, unblockMinutes: number,
+ *             unblockPassesPerDay: number, items: Item[] }} config
+ * @property {{ days: Record<string, DayRow> }} usage
+ * @property {Session | null} session
+ * @property {{ unblockUntil: Record<string, number>, cooldownUntil: Record<string, number>,
+ *              dayOverrides: Record<string, { day: string, action: "allow" | "block" }>,
+ *              lastRolloverDay?: string }} runtime
+ * @property {{ version: number, itemSeq: number, protection: null | { kind: string } }} settings
+ */
+
+/** @returns {CurfewState} */
 function defaults() {
   return {
     schema: SCHEMA,
@@ -171,7 +212,10 @@ function sanitize(state) {
 }
 
 /** Resolve any stored/imported shape into the current schema. Pure, exported
- *  for the import pipeline (transfer.js). */
+ *  for the import pipeline (transfer.js).
+ *  @param {any} state - any stored/imported shape; runtime checks below are the
+ *  real guard, so the type is deliberately open here.
+ *  @returns {CurfewState} */
 export function migrate(state) {
   if (!state || typeof state !== "object" || Array.isArray(state) || state.schema > SCHEMA) {
     return defaults();

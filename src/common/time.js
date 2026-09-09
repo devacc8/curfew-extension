@@ -1,4 +1,5 @@
-/** Local calendar day key, "YYYY-MM-DD". Accepts a Date or epoch ms. */
+/** Local calendar day key, "YYYY-MM-DD".
+ *  @param {Date|number} [date] @returns {string} */
 export function dayKey(date = new Date()) {
   const d = date instanceof Date ? date : new Date(date);
   const y = d.getFullYear();
@@ -7,14 +8,16 @@ export function dayKey(date = new Date()) {
   return `${y}-${m}-${day}`;
 }
 
-/** Day key of the previous local calendar day (yesterday in dashboards). */
+/** Day key of the previous local calendar day (yesterday in dashboards).
+ *  @param {Date|number} [now] @returns {string} */
 export function previousDayKey(now = new Date()) {
   const d = now instanceof Date ? new Date(now) : new Date(now);
   d.setDate(d.getDate() - 1);
   return dayKey(d);
 }
 
-/** Next local midnight as a Date (for the one-shot alarm). */
+/** Next local midnight as a Date (for the one-shot alarm).
+ *  @param {Date|number} [now] @returns {Date} */
 export function nextLocalMidnight(now = new Date()) {
   const next = new Date(now);
   next.setDate(next.getDate() + 1);

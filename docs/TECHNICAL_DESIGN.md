@@ -64,10 +64,10 @@ blocking `chrome://` pages, any server-side component. See PROJECT §3.5 and
 | UI | Plain HTML/CSS/JS pages (popup, options, blocked) | No framework; each page < 300 LOC | Manual DOM code |
 | i18n | `chrome.i18n`, `_locales/{en,ru}` | Store-ready, strings centralized | All UI strings via `getMessage` |
 | Tests | `node --test` (built-in runner), Node ≥ 20 | Zero deps; stable test harness | Only pure modules are unit-tested |
-| Tooling | ESLint flat config (dev-only; `no-undef` catches missing imports, as proven in M1) | Principle 2 holds: no bundler, nothing ships in the package | Discipline: lint + invariant tests (§12.2) |
+| Tooling | ESLint flat config + `tsc --noEmit` over JSDoc (dev-only; no bundler, nothing ships in the package) | Principle 2 holds: types are checked, never compiled | Discipline: lint + typecheck + invariant tests (§12.3) |
 | Distribution | zip of the repo (M3), Chrome Web Store | — | Store review: §11.3 checklist |
 
-**Explicitly banned (invariant-tested, §12.2):** `fetch`, `XMLHttpRequest`,
+**Explicitly banned (invariant-tested, §12.3):** `fetch`, `XMLHttpRequest`,
 `WebSocket`, remote `<script>`, remote `import`, analytics, error reporting.
 
 ---
@@ -106,7 +106,7 @@ curfew-extension/
     patterns.test.js
     budget.test.js
     storage.test.js           # runs against a fake chrome.storage shim
-    invariants.test.js        # security posture tests (§12.2)
+    invariants.test.js        # security posture tests (§12.3)
   package.json                # { "scripts": { "lint": "eslint src tests", "test": "npm run lint && node --test tests/*.test.js" } }
   eslint.config.js            # dev-only linter (flat config)
   README.md
@@ -257,7 +257,7 @@ doing read-modify-write on the whole document can lose each other's fields
 credit). Pages therefore never write: they send
 `{type: "state:apply", op, payload}` and the service worker applies the
 named op (`common/ops.js`) inside its serialized mutation queue (§8.5). An
-invariant test (§12.2) fails the build if any other `src/` file touches
+invariant test (§12.3) fails the build if any other `src/` file touches
 `chrome.storage.local` or imports the low-level `update()`.
 
 ### 5.5 `ops.js` — the mutation vocabulary
@@ -515,7 +515,7 @@ The SW can die any time; correctness must not depend on it staying alive.
   would be phantom time. Tracking resumes fresh (through grace) if a
   restored tab sits on a granted pattern. The 6-min cap applies only to
   SW death *within* a running browser (manual checklist #6 vs #8,
-  §12.3).
+  §12.4).
 
 ### 8.5 Open-tab re-check (the "sat past the budget" gap)
 
@@ -684,7 +684,7 @@ from SW needed.
 
 ## 11. Security & privacy model
 
-### 11.1 Hard invariants (each enforced by a test, §12.2)
+### 11.1 Hard invariants (each enforced by a test, §12.3)
 
 1. Manifest permissions match the allowlist exactly — additions fail CI.
 2. No `fetch(`/`XMLHttpRequest`/`WebSocket`/remote `import`/remote
@@ -711,7 +711,14 @@ from SW needed.
 
 ## 12. Testing strategy
 
-### 12.1 Unit tests (`node --test`, no deps)
+### 12.1 Static checks
+
+`npm test` runs, in order: `eslint src tests`; `tsc -p tsconfig.json`
+(`allowJs` + `checkJs` + `noEmit` — the JSDoc annotations and the
+`CurfewState` typedef in `common/storage.js` are the schema's executable
+documentation, and nothing is ever emitted); then the unit tests.
+
+### 12.2 Unit tests (`node --test`, no deps)
 
 | Suite | Covers |
 |---|---|
@@ -720,14 +727,14 @@ from SW needed.
 | `budget.test.js` | open/closed matrix, full state-machine transitions incl. grace edges, recovery crediting with caps |
 | `storage.test.js` | load/update/migrations against an in-memory `chrome.storage` shim |
 
-### 12.2 Invariant tests (the security posture as code)
+### 12.3 Invariant tests (the security posture as code)
 
 `invariants.test.js` reads the repo itself and asserts §11.1 items 1–5.
 These are ordinary `node --test` files — no tooling needed — and they are
 the mechanism that keeps the "zero network, minimal permissions" promise
 from eroding.
 
-### 12.3 Manual MV3 checklist (per milestone, not automatable)
+### 12.4 Manual MV3 checklist (per milestone, not automatable)
 
 | # | Scenario | Expected |
 |---|---|---|
@@ -800,7 +807,7 @@ from eroding.
 
 | Milestone | Sections of this doc |
 |---|---|
-| M0 skeleton | §3, §4, §6, §7, §12.1–12.2 (invariants from day one) |
-| M1 tracker + quota + interstitial | §5, §8, §9, §12.3 (scenarios 1–6, 10) |
-| M2 dashboard + export/import | §6, §10, §12.3 (7–9) |
+| M0 skeleton | §3, §4, §6, §7, §12.3 (invariants from day one) |
+| M1 tracker + quota + interstitial | §5, §8, §9, §12.4 (scenarios 1–6, 10) |
+| M2 dashboard + export/import | §6, §10, §12.4 (7–9) |
 | M3 store package | §11.3, PROJECT §7 |

@@ -32,9 +32,9 @@ function bookCredit(state, credit, startAtMs, maxCreditMs) {
  * @param state - the state document, mutated in place.
  * @param event - `{ type: "environment", pattern, canCount }`.
  * @param nowMs - this run's clock.
- * @param options.fromWake - true on the first event after a cold start, when
- *   the previous session's uncredited window must be recovered.
- * @param options.maxCreditMs - ceiling for any single credit.
+ * @param {{ fromWake?: boolean, maxCreditMs?: number }} [options] - `fromWake`
+ *   on the first event after a cold start (the previous session's uncredited
+ *   window must be recovered), `maxCreditMs` as the ceiling per credit.
  * @returns the credits that landed, each with its `day`.
  */
 export function trackEnvironment(state, event, nowMs, options = {}) {

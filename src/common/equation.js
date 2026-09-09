@@ -24,7 +24,7 @@ function divisorsOf(value, max) {
 
 /** Returns { text, value, terms }. rng injectable for deterministic tests.
  *  terms omitted -> random 5-7 per equation. */
-export function generateEquation({ terms } = {}, rng = Math.random) {
+export function generateEquation({ terms } = /** @type {{terms?: number}} */ ({}), rng = Math.random) {
   const count = terms ? Math.max(5, Math.min(7, terms)) : randInt(5, 7, rng);
   let value = randInt(10, 99, rng);
   let text = String(value);
