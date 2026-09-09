@@ -427,6 +427,16 @@ Grace (default 10 s, configurable) absorbs accidental navigations. Note:
 grace never shields an already-closed site — DNR fires before any page loads
 (§9), so there is nothing to "grace" into.
 
+**Promotion is a first-class step** (`promoteGrace()`): whenever any event
+(tick, same-pattern event, departure, or SW wake) observes a GRACE session
+whose window has already elapsed, it is promoted to COUNTING with
+`lastTickAt` backfilled to the end of the grace window. Promotion runs
+*before* the pattern branch, so a visit that ends before the next tick —
+open a site, read for 40 s, switch away — still credits its post-grace
+part instead of being discarded whole. The promoting tick credits that
+remainder in the same step, so the dashboard is truthful on the first
+flush after a short visit.
+
 ### 8.3 Inputs → effects (SW wiring)
 
 | Event | Effect |
@@ -444,10 +454,11 @@ The SW can die any time; correctness must not depend on it staying alive.
 
 - The current tracking state (`session`, §6.1) is persisted on every phase
   change and on every flush.
-- On any wake-up (event or alarm), the SW reads `session`; if `phase` is
-  `counting`, it credits `now − lastTickAt` **capped at 6 min** (tick
-  interval + slack) to the pattern — this absorbs long sleeps without
-  crediting hours of absence — then resumes from `now`.
+- On any wake-up (event or alarm), the SW reads `session`; a GRACE session
+  past its window is promoted first (§8.2), then if `phase` is `counting`,
+  the SW credits `now − lastTickAt` **capped at 6 min** (tick interval +
+  slack) to the pattern — this absorbs long sleeps without crediting hours
+  of absence — then resumes from `now`.
 - **Every credit path is double-guarded** (a real bug: an overnight tick
   once credited 600 unmin capped): `capCredits` caps each credit at 6 min,
   and a credit whose window **spans local midnight is dropped entirely**
