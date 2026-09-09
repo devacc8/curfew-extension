@@ -35,6 +35,13 @@ if (!domain) {
 }
 
 async function init() {
+  // Ask the SW to credit pending time before reading: the wall must show the
+  // same numbers the enforcement just used, not a snapshot up to 5 min old.
+  try {
+    await chrome.runtime.sendMessage({ type: "flush" });
+  } catch {
+    // SW asleep or unreachable: the stored snapshot is still better than nothing.
+  }
   state = await load();
   item = state.config.items.find((i) => {
     const parsed = parsePattern(i.pattern);

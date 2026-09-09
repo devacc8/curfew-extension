@@ -11,6 +11,7 @@ import {
   capCredits,
   dropIfMidnightCrossed,
   effectiveBudgetSeconds,
+  passBonusSeconds,
   ensureDayRow,
   applyCredit,
   recordUnblock,
@@ -49,6 +50,44 @@ test("decide: zero budget means closed (block-now semantics)", () => {
 
 test("decide: missing item is open", () => {
   assert.equal(decide(null, 0, true), "open");
+});
+
+test("decide: bonus seconds (passes) extend the allowance", () => {
+  const base = item({ budgetMinutes: 25 });
+  assert.equal(decide(base, 25 * 60, true), "closed");
+  assert.equal(decide(base, 25 * 60, true, 15 * 60), "open");
+  assert.equal(decide(base, 40 * 60 - 1, true, 15 * 60), "open");
+  assert.equal(decide(base, 40 * 60, true, 15 * 60), "closed");
+});
+
+test("decide: a zero-budget item opens only through bonus seconds", () => {
+  const zero = item({ budgetMinutes: 0 });
+  assert.equal(decide(zero, 0, true), "closed");
+  assert.equal(decide(zero, 60, true, 15 * 60), "open");
+  assert.equal(decide(zero, 15 * 60, true, 15 * 60), "closed");
+});
+
+test("decide: a non-finite bonus never opens the budget", () => {
+  assert.equal(decide(item(), 999999, true, NaN), "closed");
+  assert.equal(decide(item(), 999999, true, -60), "closed");
+});
+
+test("passBonusSeconds counts only this pattern's passes for the day", () => {
+  const state = {
+    usage: {
+      days: {
+        "2026-09-02": {
+          patternSeconds: {},
+          unblocks: { "*.reddit.com": 2, "*.x.com": 1 },
+          bySite: {},
+        },
+      },
+    },
+  };
+  assert.equal(passBonusSeconds(state, "*.reddit.com", "2026-09-02", 15), 30 * 60);
+  assert.equal(passBonusSeconds(state, "*.reddit.com", "2026-09-02", 0), 0);
+  assert.equal(passBonusSeconds(state, "*.reddit.com", "2026-09-03", 15), 0);
+  assert.equal(passBonusSeconds({}, "*.reddit.com", "2026-09-02", 15), 0);
 });
 
 test("secondsUsedToday reads today's row", () => {

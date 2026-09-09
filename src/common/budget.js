@@ -19,12 +19,15 @@ export function dropIfMidnightCrossed(credits, lastDay, today) {
 
 /**
  * "open" | "closed" for an item given today's usage.
- * closed <=> enabled && masterEnabled && secondsUsed >= budget.
- * budgetMinutes <= 0 means "closed" (block-now semantics).
+ * closed <=> enabled && masterEnabled && secondsUsed >= budget + bonus.
+ * budgetMinutes <= 0 means "closed" (block-now semantics) unless passes
+ * have bought allowance through `bonusSeconds`.
+ * @param bonusSeconds - extra allowance from today's passes on this pattern.
  */
-export function decide(item, secondsUsed, masterEnabled) {
+export function decide(item, secondsUsed, masterEnabled, bonusSeconds = 0) {
   if (!masterEnabled || !item || !item.enabled) return "open";
-  const budgetSeconds = (item.budgetMinutes ?? 0) * 60;
+  const bonus = Number.isFinite(bonusSeconds) ? Math.max(0, bonusSeconds) : 0;
+  const budgetSeconds = (item.budgetMinutes ?? 0) * 60 + bonus;
   if (budgetSeconds <= 0) return "closed";
   return secondsUsed >= budgetSeconds ? "closed" : "open";
 }
@@ -52,14 +55,19 @@ export function unblockWindowActive(state, pattern, nowMs) {
   return Number.isFinite(until) && until > nowMs;
 }
 
+/** Extra allowance in seconds bought by today's passes on one pattern. */
+export function passBonusSeconds(state, pattern, day, unblockMinutes) {
+  const passes = state?.usage?.days?.[day]?.unblocks?.[pattern] ?? 0;
+  const passSeconds = Math.max(0, unblockMinutes ?? 0) * 60;
+  return passes * passSeconds;
+}
+
 /** Effective daily budget for an item: base budget extended by
  *  unblockMinutes for every pass burned on this pattern today. Passes
  *  extend the allowance — they never pause the accounting. */
 export function effectiveBudgetSeconds(item, state, day, unblockMinutes) {
-  const passes = state?.usage?.days?.[day]?.unblocks?.[item.pattern] ?? 0;
   const base = Math.max(0, (item.budgetMinutes ?? 0) * 60);
-  const passSeconds = Math.max(0, unblockMinutes ?? 0) * 60;
-  return base + passes * passSeconds;
+  return base + passBonusSeconds(state, item.pattern, day, unblockMinutes);
 }
 
 /** Total "stay anyway" passes burned today across ALL sites. */

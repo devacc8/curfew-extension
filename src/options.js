@@ -246,12 +246,15 @@ async function reverifyAccess() {
         });
         return [item.id, ok];
       } catch {
-        return [item.id, false];
+        // Unknown, not denied: a failed permissions call must not silently
+        // switch off tracking and enforcement for a still-granted site.
+        return [item.id, null];
       }
     })
   );
   await update((s) => {
     for (const [id, ok] of checks) {
+      if (ok === null) continue;
       const it = s.config.items.find((i) => i.id === id);
       if (it) it.access = ok ? "granted" : "denied";
     }
