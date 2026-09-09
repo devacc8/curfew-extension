@@ -84,6 +84,30 @@ export function passesLeftToday(state, day, limit) {
 }
 
 /**
+ * Epoch ms at which the CURRENTLY COUNTING pattern runs out of allowance, or
+ * null when nothing is accruing, it is already closed, or something other
+ * than the budget decides right now (master off, access lost, a pass window,
+ * a day override). The service worker turns this into a one-shot alarm so the
+ * wall lands at the moment the budget is spent instead of on the next 5-min
+ * tick. Pure: the caller owns Date.now().
+ */
+export function nextExhaustionAt(state, day, nowMs) {
+  const session = state?.session;
+  if (!session || session.phase !== "counting") return null;
+  const item = state?.config?.items?.find((i) => i.pattern === session.pattern);
+  if (!item || !item.enabled || item.access !== "granted") return null;
+  if (!state.config.masterEnabled) return null;
+  if (unblockWindowActive(state, session.pattern, nowMs)) return null;
+  const override = state.runtime?.dayOverrides?.[session.pattern];
+  if (override && override.day === day) return null;
+  const remaining =
+    effectiveBudgetSeconds(item, state, day, state.config.unblockMinutes) -
+    secondsUsedToday(state, session.pattern, day);
+  if (remaining <= 0) return null;
+  return nowMs + remaining * 1000;
+}
+
+/**
  * Promote a GRACE session whose window has already elapsed into COUNTING,
  * backfilling lastTickAt to the end of the grace window. Pure and exported
  * because the SW's wake recovery needs the same promotion: a visit that

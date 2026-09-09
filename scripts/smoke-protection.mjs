@@ -1,6 +1,7 @@
 import puppeteer from "puppeteer";
 import { join, dirname } from "node:path";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { findChrome } from "./chrome-path.mjs";
 import { fileURLToPath } from "node:url";
@@ -24,6 +25,10 @@ try {
   );
   const extensionId = new URL(target.url()).host;
   console.log("extension id:", extensionId);
+  // Worker errors are otherwise invisible in this output.
+  const worker = await target.worker();
+  worker?.on("console", (m) => console.log("[sw]", m.type(), m.text()));
+  worker?.on("error", (e) => console.log("[sw error]", e.message));
 
   const page = await browser.newPage();
   const pageErrors = [];
@@ -407,6 +412,83 @@ try {
   } else {
     console.log("PASS: the options page writes through the worker");
   }
+
+  // A counting session with 1 minute of allowance left must arm a one-shot
+  // "exhaust" alarm for that moment — not wait for the 5-minute tick. The
+  // page has to sit on a REAL host, or the tracker ends the session the
+  // moment it probes an extension page; a loopback server gives us one
+  // without touching the network.
+  const server = createServer((_req, res) => {
+    res.writeHead(200, { "Content-Type": "text/html" });
+    res.end("<!doctype html><title>curfew smoke</title>ok");
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const siteHost = "127.0.0.1";
+  await page.goto(`http://${siteHost}:${server.address().port}/`, { waitUntil: "domcontentloaded" });
+  // A background extension page supplies chrome.* for the fixture write; the
+  // site tab stays ACTIVE so the tracker keeps the session for its host.
+  // (blocked.html is used, not options.html: the options page re-verifies
+  // real permissions and would flip our synthetic grant to denied.)
+  const helper = await browser.newPage();
+  await helper.goto(`chrome-extension://${extensionId}/src/blocked.html?domain=${siteHost}`, {
+    waitUntil: "domcontentloaded",
+  });
+  await page.bringToFront();
+  await sleep(500);
+  const exhaust = await helper.evaluate(async (host) => {
+    const { dayKey } = await import(chrome.runtime.getURL("src/common/time.js"));
+    const day = dayKey();
+    const now = Date.now();
+    const item = {
+      id: "e2e-exh",
+      ruleId: 9010,
+      pattern: host,
+      budgetMinutes: 5,
+      enabled: true,
+      access: "granted",
+    };
+    const state = {
+      schema: 1,
+      config: {
+        masterEnabled: true,
+        graceSeconds: 10,
+        unblockMinutes: 15,
+        unblockPassesPerDay: 3,
+        items: [item],
+      },
+      usage: {
+        days: {
+          [day]: {
+            patternSeconds: { [host]: 4 * 60 },
+            unblocks: {},
+            bySite: {},
+          },
+        },
+      },
+      session: {
+        pattern: host,
+        phase: "counting",
+        phaseStartedAt: now - 1000,
+        lastTickAt: now,
+      },
+      runtime: { unblockUntil: {}, dayOverrides: {}, lastRolloverDay: day },
+      settings: { version: 1, itemSeq: 9010, protection: null },
+    };
+    await new Promise((res) => chrome.storage.local.set({ curfew: state }, res));
+    await chrome.runtime.sendMessage({ type: "flush" });
+    const alarm = await chrome.alarms.get("exhaust");
+    // Alarm exposes scheduledTime; `when` is only a create() input.
+    return { leadMs: alarm?.scheduledTime ? alarm.scheduledTime - Date.now() : null };
+  }, siteHost);
+  console.log("exhaust alarm:", JSON.stringify(exhaust));
+  if (exhaust.leadMs === null || exhaust.leadMs < 50_000 || exhaust.leadMs > 70_000) {
+    console.log("FAIL: the exhaustion alarm is not armed for the remaining minute");
+    process.exitCode = 1;
+  } else {
+    console.log("PASS: the exhaustion alarm lands on the remaining minute");
+  }
+  await helper.close();
+  await new Promise((resolve) => server.close(resolve));
 
   // the wall page must load with zero script errors (module imports etc.)
   await page.goto(`chrome-extension://${extensionId}/src/blocked.html?domain=github.com`, {

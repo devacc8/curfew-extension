@@ -13,6 +13,7 @@ import {
   dropIfMidnightCrossed,
   effectiveBudgetSeconds,
   passBonusSeconds,
+  nextExhaustionAt,
   ensureDayRow,
   applyCredit,
   recordUnblock,
@@ -433,4 +434,72 @@ test("transition: grace never double-credits when promoted then flushed", () => 
   assert.equal(departed.credits.reduce((a, c) => a + c.ms, 0), 30 * S);
   const ticked = transition(departed.state, { type: "tick" }, CFG, 45 * S);
   assert.deepEqual(ticked.credits, []);
+});
+
+const EX_DAY = "2026-09-09";
+const counting = (pattern = "*.reddit.com") => ({
+  pattern,
+  phase: "counting",
+  phaseStartedAt: 0,
+  lastTickAt: 0,
+});
+const exState = (over = {}) => ({
+  config: {
+    masterEnabled: true,
+    graceSeconds: 10,
+    unblockMinutes: 15,
+    unblockPassesPerDay: 3,
+    items: [item({ pattern: "*.reddit.com", budgetMinutes: 30 })],
+  },
+  usage: {
+    days: {
+      [EX_DAY]: { patternSeconds: { "*.reddit.com": 25 * 60 }, unblocks: {}, bySite: {} },
+    },
+  },
+  runtime: { unblockUntil: {}, dayOverrides: {} },
+  session: counting(),
+  ...over,
+});
+
+test("nextExhaustionAt: the deadline is now + the remaining allowance", () => {
+  assert.equal(nextExhaustionAt(exState(), EX_DAY, 1000), 1000 + 5 * 60 * 1000);
+});
+
+test("nextExhaustionAt: burned passes push the deadline out", () => {
+  const state = exState();
+  state.usage.days[EX_DAY].unblocks["*.reddit.com"] = 2;
+  assert.equal(nextExhaustionAt(state, EX_DAY, 1000), 1000 + 35 * 60 * 1000);
+});
+
+test("nextExhaustionAt: null when nothing accrues or nothing is left", () => {
+  assert.equal(nextExhaustionAt(exState({ session: null }), EX_DAY, 1000), null);
+  assert.equal(
+    nextExhaustionAt(exState({ session: { ...counting(), phase: "grace" } }), EX_DAY, 1000),
+    null
+  );
+  const spent = exState();
+  spent.usage.days[EX_DAY].patternSeconds["*.reddit.com"] = 30 * 60;
+  assert.equal(nextExhaustionAt(spent, EX_DAY, 1000), null);
+});
+
+test("nextExhaustionAt: null when something else decides right now", () => {
+  const masterOff = exState();
+  masterOff.config.masterEnabled = false;
+  assert.equal(nextExhaustionAt(masterOff, EX_DAY, 1000), null);
+
+  const denied = exState();
+  denied.config.items[0].access = "denied";
+  assert.equal(nextExhaustionAt(denied, EX_DAY, 1000), null);
+
+  const windowLive = exState();
+  windowLive.runtime.unblockUntil["*.reddit.com"] = 2000;
+  assert.equal(nextExhaustionAt(windowLive, EX_DAY, 1000), null);
+
+  const overridden = exState();
+  overridden.runtime.dayOverrides["*.reddit.com"] = { day: EX_DAY, action: "block" };
+  assert.equal(nextExhaustionAt(overridden, EX_DAY, 1000), null);
+});
+
+test("nextExhaustionAt: a session for an unknown pattern is ignored", () => {
+  assert.equal(nextExhaustionAt(exState({ session: counting("*.gone.com") }), EX_DAY, 1000), null);
 });

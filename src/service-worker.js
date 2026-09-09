@@ -9,6 +9,7 @@ import {
   recordUnblock,
   capCredits,
   dropIfMidnightCrossed,
+  nextExhaustionAt,
 } from "./common/budget.js";
 import { desiredRules, isOpen, resolvePassRequest } from "./common/rules.js";
 import { applyOp } from "./common/ops.js";
@@ -16,6 +17,7 @@ import { pruneDays } from "./common/transfer.js";
 
 const TICK = "tick";
 const MIDNIGHT = "midnight";
+const EXHAUST = "exhaust";
 const UNBLOCK_PREFIX = "unblock:";
 const MENU_ID = "curfew-add-site";
 const TICK_MINUTES = 5;
@@ -226,8 +228,25 @@ function blockedPageFor(host) {
   return `${BLOCKED_PAGE}?domain=${encodeURIComponent(host)}`;
 }
 
+/**
+ * Project the projected budget-exhaustion moment into a one-shot alarm, so
+ * the wall lands when the allowance is actually spent instead of on the next
+ * 5-minute tick. Recomputed on every reconcile, so it follows pauses, burned
+ * passes and budget edits; cleared whenever nothing is accruing.
+ */
+function scheduleExhaust(state, now) {
+  const at = nextExhaustionAt(state, dayKey(now), now);
+  if (at === null) {
+    chrome.alarms.clear(EXHAUST);
+    return;
+  }
+  // One-shot alarms fire with second-level jitter; never schedule the past.
+  chrome.alarms.create(EXHAUST, { when: Math.max(now + 1000, at) });
+}
+
 async function reconcile(state) {
   const now = Date.now();
+  scheduleExhaust(state, now);
   const desired = desiredRules(state, {
     day: dayKey(now),
     nowMs: now,
@@ -327,7 +346,7 @@ async function rollover(state) {
 }
 
 async function onAlarm(alarm) {
-  if (alarm.name === TICK) {
+  if (alarm.name === TICK || alarm.name === EXHAUST) {
     await flushTick();
   } else if (alarm.name !== MIDNIGHT && !alarm.name.startsWith(UNBLOCK_PREFIX)) {
     return;
