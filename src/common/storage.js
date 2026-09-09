@@ -13,7 +13,7 @@ function defaults() {
     },
     usage: { days: {} },
     session: null,
-    runtime: { unblockUntil: {}, dayOverrides: {} },
+    runtime: { unblockUntil: {}, cooldownUntil: {}, dayOverrides: {} },
     settings: { version: 1, itemSeq: 1000, protection: null },
   };
 }
@@ -106,6 +106,14 @@ function sanitizeItems(raw, settings) {
         0,
         Math.min(1440, Math.round(finiteNumber(entry.budgetMinutes, 30)))
       ),
+      sessionLimitMinutes: Math.max(
+        0,
+        Math.min(1440, Math.round(finiteNumber(entry.sessionLimitMinutes, 0)))
+      ),
+      cooldownMinutes: Math.max(
+        0,
+        Math.min(1440, Math.round(finiteNumber(entry.cooldownMinutes, 0)))
+      ),
       enabled: entry.enabled === undefined ? true : Boolean(entry.enabled),
       access: entry.access === "granted" ? "granted" : "denied",
     });
@@ -137,6 +145,7 @@ function sanitize(state) {
   const runtime = {
     ...state.runtime,
     unblockUntil: numberMap(state.runtime?.unblockUntil),
+    cooldownUntil: numberMap(state.runtime?.cooldownUntil),
     dayOverrides: sanitizeOverrides(state.runtime?.dayOverrides),
   };
   if (typeof runtime.lastRolloverDay !== "string") delete runtime.lastRolloverDay;
@@ -257,6 +266,9 @@ export function upsertItem(state, { pattern, budgetMinutes, access = "granted" }
       ruleId: ++state.settings.itemSeq,
       pattern: normalized,
       budgetMinutes: 30,
+      // Anti-infinite-scroll: 0 disables the cap / the cooldown.
+      sessionLimitMinutes: 0,
+      cooldownMinutes: 0,
       enabled: true,
       access,
     };

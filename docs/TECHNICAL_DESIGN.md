@@ -338,6 +338,8 @@ Extends PROJECT §4.2 — this section is authoritative.
         "ruleId": 1001,                // DNR dynamic rule id, from itemSeq
         "pattern": "*.reddit.com",     // grammar: §5.2
         "budgetMinutes": 30,
+        "sessionLimitMinutes": 0,      // anti-infinite-scroll cap; 0 = off (§9.6)
+        "cooldownMinutes": 0,          // break after a long session; 0 = off
         "enabled": true,
         "access": "granted"            // granted | denied (§7)
       }
@@ -361,8 +363,9 @@ Extends PROJECT §4.2 — this section is authoritative.
     "lastTickAt": 1725273650000
   },
 
-  "runtime": {                         // unblock windows, day overrides, rollover
+  "runtime": {                         // pass windows, cooldowns, overrides, rollover
     "unblockUntil": { "*.reddit.com": 1725274500000 },
+    "cooldownUntil": { "*.x.com": 1725274800000 },
     "dayOverrides": { "*.x.com": { "day": "2026-09-02", "action": "block" } },
     "lastRolloverDay": "2026-09-02"
   },
@@ -621,6 +624,29 @@ forms tested against tricky hosts (`||x.company/` must not match
   ~31 min left and then closed on the spot).
 - No per-item cap; the global counter and the dashboard are the feedback
   loop, not a punishment.
+
+### 9.6 Session limit & cooldown (anti-infinite-scroll)
+
+The daily budget bounds the total, but the stated problem is the *infinite
+scroll*: a single unbroken session. Two per-item numbers address it:
+
+- `sessionLimitMinutes` — a counting session longer than this closes the site;
+- `cooldownMinutes` — how long it stays closed. The session is dropped, so
+  time stops accruing immediately.
+
+`tracking.js` (`applySessionLimit`) starts the cooldown when the counting
+session's `now − phaseStartedAt` reaches the limit, sets
+`runtime.cooldownUntil[pattern]` and nulls the session. The SW arms a one-shot
+`cooldown:<ruleId>` alarm that re-opens the site at the deadline;
+`pruneRuntime` drops expired entries and `applyRollover` clears them at
+midnight.
+
+Precedence in `isOpen` (§5.6): a cooldown closes the site even under budget,
+and only two things lift it — an explicit pass (the user decided to stay) or
+an `allow` day override. Overshoot past the limit is booked honestly rather
+than truncated, so the dashboard still tells the truth. `nextExhaustionAt`
+returns the earlier of budget exhaustion and the session limit, so the same
+one-shot alarm lands the wall on time.
 
 ### 9.5 Blocked page domain resolution (M1 implementation)
 

@@ -256,3 +256,37 @@ test("resolvePassRequest: an allow override makes the request a no-op", () => {
     until: undefined,
   });
 });
+
+test("isOpen: an active cooldown closes the site even under budget", () => {
+  const s = state();
+  s.runtime.cooldownUntil = { "*.reddit.com": NOW + 60_000 };
+  assert.equal(isOpen(s, s.config.items[0], DAY, NOW), false);
+  s.runtime.cooldownUntil["*.reddit.com"] = NOW - 1;
+  assert.equal(isOpen(s, s.config.items[0], DAY, NOW), true);
+});
+
+test("isOpen: a pass lifts the cooldown", () => {
+  const s = state();
+  s.runtime.cooldownUntil = { "*.reddit.com": NOW + 60_000 };
+  s.runtime.unblockUntil["*.reddit.com"] = NOW + 60_000;
+  assert.equal(isOpen(s, s.config.items[0], DAY, NOW), true);
+});
+
+test("isOpen: an allow override lifts the cooldown", () => {
+  const s = state();
+  s.runtime.cooldownUntil = { "*.reddit.com": NOW + 60_000 };
+  s.runtime.dayOverrides["*.reddit.com"] = { day: DAY, action: "allow" };
+  assert.equal(isOpen(s, s.config.items[0], DAY, NOW), true);
+});
+
+test("isOpen: denied access beats a cooldown (nothing to enforce)", () => {
+  const denied = state({
+    config: {
+      masterEnabled: true,
+      unblockMinutes: 15,
+      items: [{ ...state().config.items[0], access: "denied" }],
+    },
+  });
+  denied.runtime.cooldownUntil = { "*.reddit.com": NOW + 60_000 };
+  assert.equal(isOpen(denied, denied.config.items[0], DAY, NOW), true);
+});

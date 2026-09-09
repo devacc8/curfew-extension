@@ -77,6 +77,35 @@ async function addSite() {
   setStatus(granted ? "addedGranted" : "addedDenied");
 }
 
+/**
+ * A compact numeric item field. The permissive direction (a bigger budget, a
+ * longer session limit, a SHORTER cooldown) goes behind the challenge; the
+ * restrictive direction applies immediately. `relaxes(next)` decides.
+ */
+function guardedNumberField({ value, title, unit, relaxes, apply }) {
+  const input = document.createElement("input");
+  input.type = "number";
+  input.className = "budget";
+  input.min = "0";
+  input.max = "1440";
+  input.value = value;
+  input.title = title;
+  input.addEventListener("change", async () => {
+    const next = Math.max(0, Math.min(1440, Number(input.value) || 0));
+    const commit = async () => {
+      await apply(next);
+      input.value = next;
+    };
+    if (relaxes(next)) return commit();
+    const done = await guarded(commit);
+    if (!done) input.value = value;
+  });
+  const label = document.createElement("span");
+  label.className = "unit";
+  label.textContent = unit;
+  return [input, label];
+}
+
 function buildRow(item) {
   const li = document.createElement("li");
 
@@ -98,32 +127,45 @@ function buildRow(item) {
   name.className = "pattern";
   name.textContent = item.pattern;
 
-  const budget = document.createElement("input");
-  budget.type = "number";
-  budget.className = "budget";
-  budget.min = "0";
-  budget.max = "1440";
-  budget.value = item.budgetMinutes;
-  budget.addEventListener("change", async () => {
-    const v = Math.max(0, Math.min(1440, Number(budget.value) || 0));
-    const apply = async () => {
-      await mutate("item.update", { id: item.id, fields: { budgetMinutes: v } });
-      budget.value = v;
-    };
-    if (v <= item.budgetMinutes) return apply();
-    const done = await guarded(apply);
-    if (!done) budget.value = item.budgetMinutes;
+  const [budget, budgetUnit] = guardedNumberField({
+    value: item.budgetMinutes,
+    title: msg("budgetUnit"),
+    unit: msg("budgetUnit"),
+    relaxes: (next) => next > item.budgetMinutes,
+    apply: (next) => mutate("item.update", { id: item.id, fields: { budgetMinutes: next } }),
   });
-
-  const unit = document.createElement("span");
-  unit.className = "unit";
-  unit.textContent = msg("budgetUnit");
+  const [sessionLimit, sessionUnit] = guardedNumberField({
+    value: item.sessionLimitMinutes ?? 0,
+    title: msg("sessionLimitTitle"),
+    unit: msg("sessionUnit"),
+    relaxes: (next) => next > (item.sessionLimitMinutes ?? 0),
+    apply: (next) =>
+      mutate("item.update", { id: item.id, fields: { sessionLimitMinutes: next } }),
+  });
+  const [cooldown, cooldownUnit] = guardedNumberField({
+    value: item.cooldownMinutes ?? 0,
+    title: msg("cooldownTitle"),
+    unit: msg("cooldownUnit"),
+    // A SHORTER break is the permissive direction, so it needs the challenge.
+    relaxes: (next) => next <= (item.cooldownMinutes ?? 0),
+    apply: (next) => mutate("item.update", { id: item.id, fields: { cooldownMinutes: next } }),
+  });
 
   const badge = document.createElement("span");
   badge.className = "badge" + (item.access === "granted" ? " granted" : "");
   badge.textContent = msg(item.access === "granted" ? "accessGranted" : "accessDenied");
 
-  li.append(enabled, name, budget, unit, badge);
+  li.append(
+    enabled,
+    name,
+    budget,
+    budgetUnit,
+    sessionLimit,
+    sessionUnit,
+    cooldown,
+    cooldownUnit,
+    badge
+  );
 
   if (item.access !== "granted") {
     const grant = document.createElement("button");

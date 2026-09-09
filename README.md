@@ -41,6 +41,8 @@ YOU choose, with budgets YOU set. A curfew doesn't say "never". It says
 - **The wall** — when the budget is spent, the site is redirected at the
   network-request level: no flash of content, works even while the
   extension sleeps
+- **Session limit + cooldown** — cap one unbroken visit (e.g. 10 min), then
+  the site takes a break (e.g. 5 min). The infinite scroll, interrupted
 - **Stay anyway, honestly** — 15-minute passes exist on purpose, and every
   one of them is counted and shown in the dashboard
 - **Willpower Protection** — optional mode where relaxing the rules asks

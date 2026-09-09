@@ -58,7 +58,7 @@ test("migrate sanitizes a hostile shape instead of bricking consumers", () => {
   });
   assert.deepEqual(state.config.items, []);
   assert.deepEqual(state.usage.days, {});
-  assert.deepEqual(state.runtime, { unblockUntil: {}, dayOverrides: {} });
+  assert.deepEqual(state.runtime, { unblockUntil: {}, cooldownUntil: {}, dayOverrides: {} });
   assert.equal(state.session, null);
   assert.equal(state.config.masterEnabled, true);
   assert.equal(state.config.graceSeconds, 10);
@@ -134,7 +134,7 @@ test("load seeds defaults on first run", async () => {
   assert.deepEqual(state.config.items, []);
   assert.deepEqual(state.usage, { days: {} });
   assert.equal(state.session, null);
-  assert.deepEqual(state.runtime, { unblockUntil: {}, dayOverrides: {} });
+  assert.deepEqual(state.runtime, { unblockUntil: {}, cooldownUntil: {}, dayOverrides: {} });
   assert.equal(state.settings.itemSeq, 1000);
   assert.equal(state.settings.protection, null);
 });
@@ -237,7 +237,7 @@ test("migrate fills missing top-level keys", async () => {
   assert.equal(state.schema, 1);
   assert.equal(state.config.items.length, 1);
   assert.deepEqual(state.usage, { days: {} });
-  assert.deepEqual(state.runtime, { unblockUntil: {}, dayOverrides: {} });
+  assert.deepEqual(state.runtime, { unblockUntil: {}, cooldownUntil: {}, dayOverrides: {} });
   assert.equal(state.session, null);
 });
 

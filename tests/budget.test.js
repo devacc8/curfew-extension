@@ -14,6 +14,7 @@ import {
   effectiveBudgetSeconds,
   passBonusSeconds,
   nextExhaustionAt,
+  cooldownActive,
   ensureDayRow,
   applyCredit,
   recordUnblock,
@@ -518,4 +519,24 @@ test("nextExhaustionAt: null when something else decides right now", () => {
 
 test("nextExhaustionAt: a session for an unknown pattern is ignored", () => {
   assert.equal(nextExhaustionAt(exState({ session: counting("*.gone.com") }), EX_DAY, 1000), null);
+});
+
+test("cooldownActive: only a future deadline blocks", () => {
+  assert.equal(
+    cooldownActive({ runtime: { cooldownUntil: { "x.com": 2000 } } }, "x.com", 1000),
+    true
+  );
+  assert.equal(
+    cooldownActive({ runtime: { cooldownUntil: { "x.com": 1000 } } }, "x.com", 1000),
+    false
+  );
+  assert.equal(cooldownActive({}, "x.com", 1000), false);
+});
+
+test("nextExhaustionAt: a session limit pulls the deadline in", () => {
+  const state = exState();
+  state.config.items[0].sessionLimitMinutes = 5;
+  state.session.phaseStartedAt = 1000 - 2 * 60 * 1000;
+  // 5 minutes of budget left, but the session limit hits in 3 minutes.
+  assert.equal(nextExhaustionAt(state, EX_DAY, 1000), 1000 + 3 * 60 * 1000);
 });

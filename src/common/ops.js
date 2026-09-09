@@ -29,22 +29,37 @@ const access = (value) => (value === "granted" ? "granted" : "denied");
  */
 const OPS = {
   /** Create or update an item by pattern; returns the identity the page needs. */
-  "item.add": (state, { pattern, budgetMinutes: minutes, access: a }) => {
+  "item.add": (
+    state,
+    { pattern, budgetMinutes: minutes, access: a, sessionLimitMinutes, cooldownMinutes }
+  ) => {
     const item = upsertItem(state, {
       pattern: String(pattern),
       budgetMinutes: budgetMinutes(minutes),
       access: access(a),
     });
+    if (Number.isFinite(sessionLimitMinutes)) {
+      item.sessionLimitMinutes = budgetMinutes(sessionLimitMinutes);
+    }
+    if (Number.isFinite(cooldownMinutes)) {
+      item.cooldownMinutes = budgetMinutes(cooldownMinutes);
+    }
     return { id: item.id, ruleId: item.ruleId, pattern: item.pattern };
   },
 
-  /** Patch one item; only the three user-editable fields are addressable. */
+  /** Patch one item; only the user-editable fields are addressable. */
   "item.update": (state, { id, fields }) => {
     const item = state.config.items.find((i) => i.id === id);
     if (!item) return { updated: false };
     if (fields && Object.hasOwn(fields, "enabled")) item.enabled = Boolean(fields.enabled);
     if (fields && Object.hasOwn(fields, "budgetMinutes")) {
       item.budgetMinutes = budgetMinutes(fields.budgetMinutes);
+    }
+    if (fields && Object.hasOwn(fields, "sessionLimitMinutes")) {
+      item.sessionLimitMinutes = budgetMinutes(fields.sessionLimitMinutes);
+    }
+    if (fields && Object.hasOwn(fields, "cooldownMinutes")) {
+      item.cooldownMinutes = budgetMinutes(fields.cooldownMinutes);
     }
     if (fields && Object.hasOwn(fields, "access")) item.access = access(fields.access);
     return { updated: true };

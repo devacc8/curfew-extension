@@ -119,3 +119,16 @@ test("state.import migrates the payload and prunes old days", () => {
   assert.equal(state.config.graceSeconds, 10); // migrate filled defaults
   assert.equal(state.session, null);
 });
+
+test("item.update patches the anti-scroll fields too", () => {
+  const state = base();
+  const { id } = applyOp(state, "item.add", { pattern: "x.com", budgetMinutes: 10 });
+  applyOp(state, "item.update", {
+    id,
+    fields: { sessionLimitMinutes: 10, cooldownMinutes: 5 },
+  });
+  assert.equal(state.config.items[0].sessionLimitMinutes, 10);
+  assert.equal(state.config.items[0].cooldownMinutes, 5);
+  applyOp(state, "item.update", { id, fields: { sessionLimitMinutes: -4 } });
+  assert.equal(state.config.items[0].sessionLimitMinutes, 0);
+});

@@ -175,6 +175,8 @@ li.empty {
 
 .site-row .remaining.closed { color: var(--danger); }
 
+.site-row .remaining.cooling { color: #e0b060; }
+
 .bar {
   height: 4px;
   background: #24272d;

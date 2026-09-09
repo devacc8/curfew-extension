@@ -6,6 +6,7 @@ import {
   trackTick,
   pruneRuntime,
   applyRollover,
+  applySessionLimit,
 } from "../src/common/tracking.js";
 import { secondsUsedToday } from "../src/common/budget.js";
 import { dayKey } from "../src/common/time.js";
@@ -159,4 +160,40 @@ test("simulation: a visit across midnight books each part to its own day", () =>
   ]);
   assert.equal(secondsUsedToday(state, "x.com", "2026-09-09"), 110);
   assert.equal(secondsUsedToday(state, "x.com", "2026-09-10"), 120);
+});
+
+test("applySessionLimit: reaching the limit blocks the pattern and drops the session", () => {
+  const state = fresh();
+  state.config.items[0].sessionLimitMinutes = 10;
+  state.config.items[0].cooldownMinutes = 5;
+  state.session = {
+    pattern: "x.com",
+    phase: "counting",
+    phaseStartedAt: T0,
+    lastTickAt: T0 + 9 * MIN,
+  };
+  assert.equal(applySessionLimit(state, T0 + 9 * MIN), null);
+  assert.deepEqual(applySessionLimit(state, T0 + 10 * MIN), {
+    pattern: "x.com",
+    until: T0 + 15 * MIN,
+  });
+  assert.equal(state.session, null);
+  assert.equal(state.runtime.cooldownUntil["x.com"], T0 + 15 * MIN);
+});
+
+test("simulation: a long session trips the cooldown and stops accruing", () => {
+  const state = fresh();
+  state.config.items[0].sessionLimitMinutes = 5;
+  state.config.items[0].cooldownMinutes = 2;
+  const credited = run(state, [
+    { at: 0, type: "env", pattern: "x.com", canCount: true, fromWake: true },
+    { at: 10 * S, type: "tick" },
+    { at: 3 * MIN, type: "tick" },
+    { at: 6 * MIN, type: "tick" },
+    { at: 8 * MIN, type: "tick" },
+  ]);
+  assert.equal(state.session, null);
+  assert.equal(state.runtime.cooldownUntil["x.com"], T0 + 8 * MIN);
+  // The overshoot past the limit is booked honestly, then nothing accrues.
+  assert.equal(credited, 6 * MIN - 10 * S);
 });

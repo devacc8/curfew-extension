@@ -487,6 +487,76 @@ try {
   } else {
     console.log("PASS: the exhaustion alarm lands on the remaining minute");
   }
+  // Anti-infinite-scroll: a session past its limit closes the site, drops the
+  // session and arms the cooldown alarm that will re-open it.
+  const cooldown = await helper.evaluate(async (host) => {
+    const { dayKey } = await import(chrome.runtime.getURL("src/common/time.js"));
+    const day = dayKey();
+    const now = Date.now();
+    const item = {
+      id: "e2e-cool",
+      ruleId: 9011,
+      pattern: host,
+      budgetMinutes: 1000,
+      sessionLimitMinutes: 1,
+      cooldownMinutes: 2,
+      enabled: true,
+      access: "granted",
+    };
+    const state = {
+      schema: 1,
+      config: {
+        masterEnabled: true,
+        graceSeconds: 10,
+        unblockMinutes: 15,
+        unblockPassesPerDay: 3,
+        items: [item],
+      },
+      usage: { days: { [day]: { patternSeconds: {}, unblocks: {}, bySite: {} } } },
+      session: {
+        pattern: host,
+        phase: "counting",
+        phaseStartedAt: now - 2 * 60_000,
+        lastTickAt: now,
+      },
+      runtime: {
+        unblockUntil: {},
+        cooldownUntil: {},
+        dayOverrides: {},
+        lastRolloverDay: day,
+      },
+      settings: { version: 1, itemSeq: 9011, protection: null },
+    };
+    await new Promise((res) => chrome.storage.local.set({ curfew: state }, res));
+    await chrome.runtime.sendMessage({ type: "flush" });
+    const after = await new Promise((res) =>
+      chrome.storage.local.get("curfew", (d) => res(d.curfew))
+    );
+    const rules = await chrome.declarativeNetRequest.getDynamicRules();
+    const alarm = await chrome.alarms.get("cooldown:9011");
+    return {
+      session: after?.session,
+      cooldownMs: after?.runtime?.cooldownUntil?.[host]
+        ? after.runtime.cooldownUntil[host] - Date.now()
+        : null,
+      hasRule: rules.some((r) => r.id === 9011),
+      alarmMs: alarm?.scheduledTime ? alarm.scheduledTime - Date.now() : null,
+    };
+  }, siteHost);
+  console.log("cooldown:", JSON.stringify(cooldown));
+  const cooldownOk =
+    cooldown.session === null &&
+    cooldown.cooldownMs !== null &&
+    cooldown.cooldownMs > 100_000 &&
+    cooldown.hasRule &&
+    cooldown.alarmMs !== null &&
+    cooldown.alarmMs > 100_000;
+  if (!cooldownOk) {
+    console.log("FAIL: the session limit did not close the site / arm the cooldown");
+    process.exitCode = 1;
+  } else {
+    console.log("PASS: the session limit closes the site and arms the cooldown");
+  }
   await helper.close();
   await new Promise((resolve) => server.close(resolve));
 

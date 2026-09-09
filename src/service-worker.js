@@ -15,6 +15,7 @@ const TICK = "tick";
 const MIDNIGHT = "midnight";
 const EXHAUST = "exhaust";
 const UNBLOCK_PREFIX = "unblock:";
+const COOLDOWN_PREFIX = "cooldown:";
 const MENU_ID = "curfew-add-site";
 const TICK_MINUTES = 5;
 const IDLE_SECONDS = 60;
@@ -222,9 +223,20 @@ function scheduleExhaust(state, now) {
   chrome.alarms.create(EXHAUST, { when: Math.max(now + 1000, at) });
 }
 
+/** Arm one-shot alarms that re-open sites whose anti-infinite-scroll
+ *  cooldown ends. Idempotent: creating an existing name replaces it. */
+function scheduleCooldowns(state, now) {
+  for (const item of state.config.items) {
+    const until = state.runtime.cooldownUntil?.[item.pattern];
+    if (!Number.isFinite(until) || until <= now) continue;
+    chrome.alarms.create(COOLDOWN_PREFIX + item.ruleId, { when: until });
+  }
+}
+
 async function reconcile(state) {
   const now = Date.now();
   scheduleExhaust(state, now);
+  scheduleCooldowns(state, now);
   const desired = desiredRules(state, {
     day: dayKey(now),
     nowMs: now,
@@ -308,11 +320,14 @@ async function rollover(state) {
 }
 
 async function onAlarm(alarm) {
-  if (alarm.name === TICK || alarm.name === EXHAUST) {
-    await flushTick();
-  } else if (alarm.name !== MIDNIGHT && !alarm.name.startsWith(UNBLOCK_PREFIX)) {
-    return;
-  }
+  const flushes = alarm.name === TICK || alarm.name === EXHAUST;
+  const known =
+    flushes ||
+    alarm.name === MIDNIGHT ||
+    alarm.name.startsWith(UNBLOCK_PREFIX) ||
+    alarm.name.startsWith(COOLDOWN_PREFIX);
+  if (!known) return;
+  if (flushes) await flushTick();
   const state = await rollover(await load());
   await reconcile(state);
   await bounceClosedTabs(state);

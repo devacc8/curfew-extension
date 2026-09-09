@@ -74,6 +74,12 @@ export function unblockWindowActive(state, pattern, nowMs) {
   return Number.isFinite(until) && until > nowMs;
 }
 
+/** Is an anti-infinite-scroll cooldown currently blocking this pattern? */
+export function cooldownActive(state, pattern, nowMs) {
+  const until = state?.runtime?.cooldownUntil?.[pattern];
+  return Number.isFinite(until) && until > nowMs;
+}
+
 /** Extra allowance in seconds bought by today's passes on one pattern. */
 export function passBonusSeconds(state, pattern, day, unblockMinutes) {
   const passes = state?.usage?.days?.[day]?.unblocks?.[pattern] ?? 0;
@@ -103,12 +109,13 @@ export function passesLeftToday(state, day, limit) {
 }
 
 /**
- * Epoch ms at which the CURRENTLY COUNTING pattern runs out of allowance, or
- * null when nothing is accruing, it is already closed, or something other
- * than the budget decides right now (master off, access lost, a pass window,
- * a day override). The service worker turns this into a one-shot alarm so the
- * wall lands at the moment the budget is spent instead of on the next 5-min
- * tick. Pure: the caller owns Date.now().
+ * Epoch ms of the next moment the CURRENTLY COUNTING pattern must be
+ * re-evaluated: the budget running out, or the anti-infinite-scroll session
+ * limit being reached, whichever comes first. Null when nothing is accruing,
+ * it is already closed, or something other than the budget decides right now
+ * (master off, access lost, a pass window, a day override). The service
+ * worker turns this into a one-shot alarm so the wall lands at the moment
+ * instead of on the next 5-min tick. Pure: the caller owns Date.now().
  */
 export function nextExhaustionAt(state, day, nowMs) {
   const session = state?.session;
@@ -123,7 +130,11 @@ export function nextExhaustionAt(state, day, nowMs) {
     effectiveBudgetSeconds(item, state, day, state.config.unblockMinutes) -
     secondsUsedToday(state, session.pattern, day);
   if (remaining <= 0) return null;
-  return nowMs + remaining * 1000;
+  const budgetAtMs = nowMs + remaining * 1000;
+  const limitMinutes = Math.max(0, item.sessionLimitMinutes ?? 0);
+  const limitAtMs =
+    limitMinutes > 0 ? session.phaseStartedAt + limitMinutes * 60_000 : Number.POSITIVE_INFINITY;
+  return Math.min(budgetAtMs, limitAtMs);
 }
 
 /**

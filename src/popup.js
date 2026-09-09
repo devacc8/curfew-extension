@@ -186,6 +186,8 @@ function buildRow(item, state) {
 
   const now = Date.now();
   const open = isOpen(state, item, dayKey(now), now);
+  const coolingUntil = state.runtime.cooldownUntil?.[item.pattern];
+  const cooling = Number.isFinite(coolingUntil) && coolingUntil > now;
   const used = secondsUsedToday(state, item.pattern);
   // The effective budget is what enforcement uses (base + 15 min per burned
   // pass), so the bar and the remaining label must show the same number.
@@ -197,10 +199,12 @@ function buildRow(item, state) {
   );
   const left = Math.max(0, effective - used);
   const remaining = document.createElement("span");
-  remaining.className = "remaining" + (open ? "" : " closed");
+  remaining.className = "remaining" + (open ? "" : cooling ? " cooling" : " closed");
   remaining.textContent = open
     ? `${formatRemaining(left)} ${msg("leftSuffix")}`
-    : msg("closedLabel");
+    : cooling
+      ? `${msg("cooldownLabel")} ${formatRemaining(Math.ceil((coolingUntil - now) / 1000))}`
+      : msg("closedLabel");
 
   line1.append(enabled, name, remaining);
 

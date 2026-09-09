@@ -17,6 +17,8 @@ const STATE = {
         ruleId: 1001,
         pattern: "*.reddit.com",
         budgetMinutes: 30,
+        sessionLimitMinutes: 0,
+        cooldownMinutes: 0,
         enabled: true,
         access: "granted",
       },
@@ -52,6 +54,7 @@ test("decode strips machine-local fields (session, runtime)", () => {
   assert.equal(decoded.state.session, null);
   assert.deepEqual(decoded.state.runtime, {
     unblockUntil: {},
+    cooldownUntil: {},
     dayOverrides: {},
   });
 });

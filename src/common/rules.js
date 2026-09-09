@@ -3,6 +3,7 @@ import {
   decide,
   secondsUsedToday,
   unblockWindowActive,
+  cooldownActive,
   passBonusSeconds,
   passesLeftToday,
 } from "./budget.js";
@@ -10,16 +11,18 @@ import {
 /**
  * "open" from the ENFORCEMENT point of view: no rule should exist.
  * Precedence: access-denied -> open; an ACTIVE UNBLOCK WINDOW wins over
- * everything (it is the user's explicit "stay anyway" from the wall);
- * then a day override for TODAY ("block" / "allow"); then the budget —
- * the EFFECTIVE budget, so burned passes extend the allowance exactly
- * as the popup promises.
+ * everything (it is the user's explicit "stay anyway" from the wall); a day
+ * override for TODAY ("block" / "allow"); an anti-infinite-scroll COOLDOWN
+ * (closed — its whole point is to interrupt a session, so only a pass or an
+ * explicit allow lifts it); then the budget — the EFFECTIVE budget, so
+ * burned passes extend the allowance exactly as the popup promises.
  */
 export function isOpen(state, item, day, nowMs) {
   if (item.access !== "granted") return true;
   if (unblockWindowActive(state, item.pattern, nowMs)) return true;
   const override = state.runtime.dayOverrides?.[item.pattern];
   if (override && override.day === day) return override.action === "allow";
+  if (cooldownActive(state, item.pattern, nowMs)) return false;
   const bonus = passBonusSeconds(state, item.pattern, day, state.config?.unblockMinutes);
   return (
     decide(

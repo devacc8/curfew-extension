@@ -66,6 +66,7 @@ export function trackEnvironment(state, event, nowMs, options = {}) {
     booked.push(...bookCredit(state, credit, windowStart, maxCreditMs));
   }
 
+  applySessionLimit(state, nowMs);
   return booked;
 }
 
@@ -80,17 +81,43 @@ export function trackTick(state, nowMs, options = {}) {
   for (const credit of moved.credits) {
     booked.push(...bookCredit(state, credit, windowStart, maxCreditMs));
   }
+  applySessionLimit(state, nowMs);
   return booked;
 }
 
-/** Drop expired pass windows: their one-shot alarm has already re-added the
- *  rule, and `isOpen` ignores them, so only storage hygiene is left. */
+/**
+ * Start an anti-infinite-scroll cooldown when the counting session has run
+ * for its limit: the pattern is blocked for `cooldownMinutes` and the session
+ * is dropped. Elapsed time is already booked by the caller, so the overshoot
+ * stays visible in the dashboard (honesty surface).
+ * @returns `{ pattern, until }` when a cooldown started, else null.
+ */
+export function applySessionLimit(state, nowMs) {
+  const session = state.session;
+  if (!session || session.phase !== "counting") return null;
+  const item = state.config.items.find((i) => i.pattern === session.pattern);
+  if (!item) return null;
+  const limitMinutes = Math.max(0, item.sessionLimitMinutes ?? 0);
+  const cooldownMinutes = Math.max(0, item.cooldownMinutes ?? 0);
+  if (limitMinutes <= 0 || cooldownMinutes <= 0) return null;
+  if (nowMs - session.phaseStartedAt < limitMinutes * 60_000) return null;
+  const until = nowMs + cooldownMinutes * 60_000;
+  state.runtime.cooldownUntil[session.pattern] = until;
+  state.session = null;
+  return { pattern: session.pattern, until };
+}
+
+/** Drop expired pass windows and cooldowns: their one-shot alarm has already
+ *  re-added the rule, and `isOpen` ignores them, so only storage hygiene is
+ *  left. */
 export function pruneRuntime(state, nowMs) {
   let changed = false;
-  for (const [pattern, until] of Object.entries(state.runtime.unblockUntil)) {
-    if (!(until > nowMs)) {
-      delete state.runtime.unblockUntil[pattern];
-      changed = true;
+  for (const map of [state.runtime.unblockUntil, state.runtime.cooldownUntil]) {
+    for (const [pattern, until] of Object.entries(map)) {
+      if (!(until > nowMs)) {
+        delete map[pattern];
+        changed = true;
+      }
     }
   }
   return changed;
@@ -103,6 +130,7 @@ export function applyRollover(state, nowMs, keepDays) {
   if (state.runtime.lastRolloverDay === today) return false;
   pruneDays(state, keepDays);
   state.runtime.unblockUntil = {};
+  state.runtime.cooldownUntil = {};
   state.runtime.dayOverrides = {};
   state.runtime.lastRolloverDay = today;
   return true;

@@ -193,5 +193,20 @@
   },
   "curfewLifted": {
     "message": "Комендантский час снят — нажмите на адрес выше, чтобы продолжить."
+  },
+  "sessionLimitTitle": {
+    "message": "Максимальная непрерывная сессия в минутах (0 = выкл.)"
+  },
+  "cooldownTitle": {
+    "message": "Перерыв после длинной сессии, в минутах (0 = выкл.)"
+  },
+  "sessionUnit": {
+    "message": "мин/визит"
+  },
+  "cooldownUnit": {
+    "message": "мин перерыв"
+  },
+  "cooldownLabel": {
+    "message": "Перерыв"
   }
 }

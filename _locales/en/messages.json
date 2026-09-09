@@ -193,5 +193,20 @@
   },
   "curfewLifted": {
     "message": "The curfew was lifted — click the address above to continue."
+  },
+  "sessionLimitTitle": {
+    "message": "Max continuous session in minutes (0 = off)"
+  },
+  "cooldownTitle": {
+    "message": "Cooldown after a long session, in minutes (0 = off)"
+  },
+  "sessionUnit": {
+    "message": "min/visit"
+  },
+  "cooldownUnit": {
+    "message": "min break"
+  },
+  "cooldownLabel": {
+    "message": "Break"
   }
 }
