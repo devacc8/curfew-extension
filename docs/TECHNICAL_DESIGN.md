@@ -91,7 +91,9 @@ curfew-extension/
     common/
       time.js                 # day key, midnight math, clamps (pure)
       patterns.js             # pattern grammar: parse/match/mappings (pure)
+      limits.js               # every tunable number, one copy (pure)
       budget.js               # decide, state machine, usage rows, passes (pure)
+      status.js               # describeItem: the ONE per-site status (pure)
       tracking.js             # the accounting entry points, clock-injected (pure)
       view.js                 # popup presentation math: live countdown (pure)
       ops.js                  # the mutation vocabulary the SW applies (pure)

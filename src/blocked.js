@@ -2,7 +2,8 @@ import { load } from "./common/storage.js";
 import { dayKey, nextLocalMidnight } from "./common/time.js";
 import { parsePattern, matchesHost } from "./common/patterns.js";
 import { secondsUsedToday, passesLeftToday } from "./common/budget.js";
-import { closeReason, isOpen } from "./common/rules.js";
+import { describeItem } from "./common/status.js";
+import { formatClock } from "./common/view.js";
 
 const msg = (key) => chrome.i18n.getMessage(key);
 
@@ -89,9 +90,9 @@ async function refresh() {
 
   const now = Date.now();
   const day = dayKey(now);
-  const open = isOpen(state, item, dayKey(now), now);
+  const status = describeItem(state, item, now);
 
-  if (open) {
+  if (status.open) {
     domainEl.textContent = "";
     const link = document.createElement("a");
     link.href = `https://${domain}/`;
@@ -115,17 +116,6 @@ async function refresh() {
     stayEl.disabled = left <= 0;
     paintCountdown();
   }
-}
-
-/** "4h 12m" / "3m 20s" / "48s" — a countdown must never read "0 min". */
-function formatWait(ms) {
-  const total = Math.max(0, Math.ceil(ms / 1000));
-  const h = Math.floor(total / 3600);
-  const m = Math.floor((total % 3600) / 60);
-  const s = total % 60;
-  if (h > 0) return `${h}${msg("hoursShort")}${m}${msg("minutesShort")}`;
-  if (m > 0) return `${m}${msg("minutesShort")} ${s}${msg("secondsShort")}`;
-  return `${s}${msg("secondsShort")}`;
 }
 
 /** Is the enforcement rule for this item still installed? */
@@ -154,8 +144,7 @@ async function leaveIfStale() {
   // user. Give up after ~12 s and leave the clickable link in place.
   for (let attempt = 0; attempt < 15; attempt += 1) {
     await new Promise((resolve) => setTimeout(resolve, 800));
-    const now = Date.now();
-    if (!isOpen(state, item, dayKey(now), now)) break;
+    if (!describeItem(state, item, Date.now()).open) break;
     if (await ruleGone()) {
       location.href = `https://${domain}/`;
       return;
@@ -178,25 +167,22 @@ async function leaveIfStale() {
 function paintCountdown() {
   if (!item || !state || document.visibilityState !== "visible") return;
   const now = Date.now();
-  const day = dayKey(now);
-  const reason = closeReason(state, item, day, now);
-  if (reason === null) return;
-  const cooldownUntil = state.runtime.cooldownUntil?.[item.pattern];
-  const until =
-    reason === "cooldown" && Number.isFinite(cooldownUntil) && cooldownUntil > now
-      ? cooldownUntil
-      : nextLocalMidnight(new Date(now)).getTime();
-  const leftPasses = passesLeftToday(state, day, state.config.unblockPassesPerDay);
+  const status = describeItem(state, item, now);
+  if (status.open) return;
+  const until = status.cooling
+    ? status.coolingUntil
+    : nextLocalMidnight(new Date(now)).getTime();
+  const leftPasses = passesLeftToday(state, status.day, state.config.unblockPassesPerDay);
   // Say WHY, not just "closed": a cooldown and a spent budget feel completely
   // different, and a mystery block is what makes people distrust the tool.
   const why =
-    reason === "cooldown"
+    status.reason === "cooldown"
       ? msg("closedCooldownReason")
-      : reason === "override"
+      : status.reason === "override"
         ? msg("blockNow")
         : msg("closedBudgetReason");
   hintEl.textContent =
-    `${why} · ${msg("returnsInLabel")} ${formatWait(until - now)}` +
+    `${why} · ${msg("returnsInLabel")} ${formatClock(until - now, msg)}` +
     (leftPasses <= 0 ? ` · ${msg("limitReached")}` : "");
 }
 

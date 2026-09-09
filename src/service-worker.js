@@ -10,6 +10,7 @@ import {
 } from "./common/tracking.js";
 import { desiredRules, diffRules, isOpen, resolvePassRequest } from "./common/rules.js";
 import { applyOp } from "./common/ops.js";
+import { IDLE_SECONDS, KEEP_DAYS, MAX_CREDIT_MS, TICK_MINUTES } from "./common/limits.js";
 
 const TICK = "tick";
 const MIDNIGHT = "midnight";
@@ -17,10 +18,7 @@ const EXHAUST = "exhaust";
 const UNBLOCK_PREFIX = "unblock:";
 const COOLDOWN_PREFIX = "cooldown:";
 const MENU_ID = "curfew-add-site";
-const TICK_MINUTES = 5;
-const IDLE_SECONDS = 60;
-const MAX_CREDIT_MS = 6 * 60 * 1000;
-const KEEP_DAYS = 60;
+
 const BLOCKED_PAGE = "/src/blocked.html";
 
 let warm = false;

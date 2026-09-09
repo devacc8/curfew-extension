@@ -213,10 +213,10 @@
     "message": "Вернётся через"
   },
   "hoursShort": {
-    "message": " ч "
+    "message": "ч"
   },
   "secondsShort": {
-    "message": " с"
+    "message": "с"
   },
   "addCurrentSite": {
     "message": "Добавить текущий сайт"

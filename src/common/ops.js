@@ -1,19 +1,10 @@
 import { migrate, removeItem, setMasterEnabled, upsertItem } from "./storage.js";
 import { pruneDays } from "./transfer.js";
-
-/** Clamp a user-supplied budget; the UI clamps too, this is the last line. */
-function budgetMinutes(value) {
-  const n = Number(value);
-  if (!Number.isFinite(n)) return 30;
-  return Math.max(0, Math.min(1440, Math.round(n)));
-}
-
-/** Clamp the daily pass allowance (absolute; 0 disables passes). */
-function passesPerDay(value) {
-  const n = Number(value);
-  if (!Number.isFinite(n)) return 0;
-  return Math.max(0, Math.min(99, Math.round(n)));
-}
+import {
+  clampBudgetMinutes,
+  clampMinutes,
+  clampPassesPerDay,
+} from "./limits.js";
 
 const access = (value) => (value === "granted" ? "granted" : "denied");
 
@@ -35,14 +26,14 @@ const OPS = {
   ) => {
     const item = upsertItem(state, {
       pattern: String(pattern),
-      budgetMinutes: budgetMinutes(minutes),
+      budgetMinutes: clampBudgetMinutes(minutes),
       access: access(a),
     });
     if (Number.isFinite(sessionLimitMinutes)) {
-      item.sessionLimitMinutes = budgetMinutes(sessionLimitMinutes);
+      item.sessionLimitMinutes = clampMinutes(sessionLimitMinutes);
     }
     if (Number.isFinite(cooldownMinutes)) {
-      item.cooldownMinutes = budgetMinutes(cooldownMinutes);
+      item.cooldownMinutes = clampMinutes(cooldownMinutes);
     }
     return { id: item.id, ruleId: item.ruleId, pattern: item.pattern };
   },
@@ -53,13 +44,13 @@ const OPS = {
     if (!item) return { updated: false };
     if (fields && Object.hasOwn(fields, "enabled")) item.enabled = Boolean(fields.enabled);
     if (fields && Object.hasOwn(fields, "budgetMinutes")) {
-      item.budgetMinutes = budgetMinutes(fields.budgetMinutes);
+      item.budgetMinutes = clampBudgetMinutes(fields.budgetMinutes);
     }
     if (fields && Object.hasOwn(fields, "sessionLimitMinutes")) {
-      item.sessionLimitMinutes = budgetMinutes(fields.sessionLimitMinutes);
+      item.sessionLimitMinutes = clampMinutes(fields.sessionLimitMinutes);
     }
     if (fields && Object.hasOwn(fields, "cooldownMinutes")) {
-      item.cooldownMinutes = budgetMinutes(fields.cooldownMinutes);
+      item.cooldownMinutes = clampMinutes(fields.cooldownMinutes);
     }
     if (fields && Object.hasOwn(fields, "access")) item.access = access(fields.access);
     return { updated: true };
@@ -91,7 +82,7 @@ const OPS = {
   },
 
   "passes.set": (state, { value }) => {
-    state.config.unblockPassesPerDay = passesPerDay(value);
+    state.config.unblockPassesPerDay = clampPassesPerDay(value, 0);
     return { value: state.config.unblockPassesPerDay };
   },
 

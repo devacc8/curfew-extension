@@ -1,3 +1,12 @@
+import {
+  DEFAULTS,
+  clampBudgetMinutes,
+  clampGraceSeconds,
+  clampMinutes,
+  clampPassesPerDay,
+  clampUnblockMinutes,
+} from "./limits.js";
+
 const KEY = "curfew";
 const SCHEMA = 1;
 
@@ -47,10 +56,10 @@ function defaults() {
   return {
     schema: SCHEMA,
     config: {
-      masterEnabled: true,
-      graceSeconds: 10,
-      unblockMinutes: 15,
-      unblockPassesPerDay: 3,
+      masterEnabled: DEFAULTS.masterEnabled,
+      graceSeconds: DEFAULTS.graceSeconds,
+      unblockMinutes: DEFAULTS.unblockMinutes,
+      unblockPassesPerDay: DEFAULTS.unblockPassesPerDay,
       items: [],
     },
     usage: { days: {} },
@@ -150,18 +159,9 @@ function sanitizeItems(raw, settings) {
       id: typeof entry.id === "string" && entry.id.length > 0 ? entry.id : `u${ruleId.toString(36)}`,
       ruleId,
       pattern: entry.pattern,
-      budgetMinutes: Math.max(
-        0,
-        Math.min(1440, Math.round(finiteNumber(entry.budgetMinutes, 30)))
-      ),
-      sessionLimitMinutes: Math.max(
-        0,
-        Math.min(1440, Math.round(finiteNumber(entry.sessionLimitMinutes, 0)))
-      ),
-      cooldownMinutes: Math.max(
-        0,
-        Math.min(1440, Math.round(finiteNumber(entry.cooldownMinutes, 0)))
-      ),
+      budgetMinutes: clampBudgetMinutes(entry.budgetMinutes),
+      sessionLimitMinutes: clampMinutes(entry.sessionLimitMinutes),
+      cooldownMinutes: clampMinutes(entry.cooldownMinutes),
       enabled: entry.enabled === undefined ? true : Boolean(entry.enabled),
       access: entry.access === "granted" ? "granted" : "denied",
     });
@@ -203,12 +203,9 @@ function sanitize(state) {
     config: {
       ...state.config,
       masterEnabled: state.config?.masterEnabled !== false,
-      graceSeconds: Math.max(0, finiteNumber(state.config?.graceSeconds, 10)),
-      unblockMinutes: Math.max(0, finiteNumber(state.config?.unblockMinutes, 15)),
-      unblockPassesPerDay: Math.max(
-        0,
-        Math.floor(finiteNumber(state.config?.unblockPassesPerDay, 3))
-      ),
+      graceSeconds: clampGraceSeconds(state.config?.graceSeconds),
+      unblockMinutes: clampUnblockMinutes(state.config?.unblockMinutes),
+      unblockPassesPerDay: clampPassesPerDay(state.config?.unblockPassesPerDay),
       items: sanitizeItems(state.config?.items, settings),
     },
     usage: { ...state.usage, days: sanitizeDays(state.usage?.days) },

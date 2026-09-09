@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  formatClock,
   formatDuration,
   formatRemaining,
   remainingText,
@@ -11,6 +12,7 @@ const t = (key) =>
   ({
     minutesShort: "min",
     secondsShort: "s",
+    hoursShort: "h",
     leftSuffix: "left",
     cooldownLabel: "Break",
     closedLabel: "Closed",
@@ -55,10 +57,19 @@ test("formatRemaining: seconds under a minute, then minutes, then hours", () => 
   assert.equal(formatRemaining(3900, t), "1h 5min");
 });
 
-test("formatDuration: totals round to the nearest minute", () => {
-  assert.equal(formatDuration(40, t), "1 min");
-  assert.equal(formatDuration(29, t), "0 min");
+test("formatDuration: totals round, but never hide a sub-minute visit", () => {
+  assert.equal(formatDuration(40, t), "40s");
+  assert.equal(formatDuration(29, t), "29s");
+  assert.equal(formatDuration(90, t), "2 min");
   assert.equal(formatDuration(5400, t), "1h 30min");
+});
+
+test("formatClock: one formatter, two rounding modes", () => {
+  assert.equal(formatClock(0, t), "0s");
+  assert.equal(formatClock(59_000, t), "59s");
+  assert.equal(formatClock(59_400, t, { round: "nearest" }), "59s");
+  assert.equal(formatClock(60_000, t), "1 min");
+  assert.equal(formatClock(3_600_000, t), "1h 0min");
 });
 
 test("rowViewModel: usage ticks with the running session", () => {

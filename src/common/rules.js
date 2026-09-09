@@ -1,45 +1,9 @@
 import { parsePattern, toDnrCondition } from "./patterns.js";
-import {
-  decide,
-  secondsUsedToday,
-  unblockWindowActive,
-  cooldownActive,
-  passBonusSeconds,
-  passesLeftToday,
-} from "./budget.js";
+import { passesLeftToday } from "./budget.js";
+import { closeReason, isOpen } from "./status.js";
 
-/**
- * Why enforcement closes this item right now, or null when it is open.
- * The wall and the popup say it out loud, so a block is never a mystery:
- * a cooldown and a spent budget look completely different to the user.
- * Precedence: access-denied -> open; an ACTIVE UNBLOCK WINDOW wins over
- * everything (it is the user's explicit "stay anyway" from the wall); a day
- * override for TODAY ("block" / "allow"); an anti-infinite-scroll COOLDOWN;
- * then the budget — the EFFECTIVE budget, so burned passes extend the
- * allowance exactly as the popup promises.
- * @returns {"override" | "cooldown" | "budget" | null}
- */
-export function closeReason(state, item, day, nowMs) {
-  if (item.access !== "granted") return null;
-  if (unblockWindowActive(state, item.pattern, nowMs)) return null;
-  const override = state.runtime.dayOverrides?.[item.pattern];
-  if (override && override.day === day) return override.action === "allow" ? null : "override";
-  if (cooldownActive(state, item.pattern, nowMs)) return "cooldown";
-  const bonus = passBonusSeconds(state, item.pattern, day, state.config?.unblockMinutes);
-  return decide(
-    item,
-    secondsUsedToday(state, item.pattern, day),
-    state.config.masterEnabled,
-    bonus
-  ) === "closed"
-    ? "budget"
-    : null;
-}
-
-/** "open" from the ENFORCEMENT point of view: no rule should exist. */
-export function isOpen(state, item, day, nowMs) {
-  return closeReason(state, item, day, nowMs) === null;
-}
+// The open/closed decision (and its reason) lives in status.js — one source.
+export { closeReason, isOpen };
 
 /**
  * Outcome of a "stay anyway" request. Pure so the SW handler stays a
