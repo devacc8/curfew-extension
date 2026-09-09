@@ -10,7 +10,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 /** The schema sample from TECHNICAL_DESIGN §6.1, minus its jsonc comments. */
 function schemaSample() {
   const doc = readFileSync(join(ROOT, "docs", "TECHNICAL_DESIGN.md"), "utf8");
-  const start = doc.indexOf("### 6.1 Schema v1");
+  const start = doc.indexOf("### 6.1 Schema");
   assert.ok(start > 0, "§6.1 not found");
   const section = doc.slice(start, doc.indexOf("### 6.2", start));
   const match = section.match(/```jsonc\n([\s\S]*?)```/);
