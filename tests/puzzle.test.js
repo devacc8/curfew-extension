@@ -9,17 +9,7 @@ import {
   randomMove,
   shuffledBoard,
 } from "../src/common/puzzle.js";
-
-function mulberry32(seed) {
-  let a = seed;
-  return () => {
-    a |= 0;
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
+import { seededRng } from "./helpers/rng.js";
 
 test("solvedBoard is solved and full", () => {
   const board = solvedBoard();
@@ -52,7 +42,7 @@ test("moveTile swaps with the blank and back", () => {
 
 test("shuffledBoard keeps the tile multiset and is never solved", () => {
   for (let seed = 1; seed <= 20; seed++) {
-    const board = shuffledBoard(80, mulberry32(seed));
+    const board = shuffledBoard(80, seededRng(seed));
     assert.equal(board.length, 16);
     assert.deepEqual(
       [...board].sort((a, b) => a - b),
@@ -63,15 +53,15 @@ test("shuffledBoard keeps the tile multiset and is never solved", () => {
 });
 
 test("shuffledBoard is deterministic for a fixed rng", () => {
-  const a = shuffledBoard(80, mulberry32(42));
-  const b = shuffledBoard(80, mulberry32(42));
+  const a = shuffledBoard(80, seededRng(42));
+  const b = shuffledBoard(80, seededRng(42));
   assert.deepEqual(a, b);
 });
 
 test("randomMove never picks the tile that would undo the last move", () => {
   const board = solvedBoard(); // blank at 15, legal tiles are 12 and 15
   for (let seed = 1; seed <= 50; seed++) {
-    const rng = mulberry32(seed);
+    const rng = seededRng(seed);
     for (const previous of legalTiles(board)) {
       for (let i = 0; i < 10; i++) {
         assert.notEqual(randomMove(board, previous, rng), previous);
@@ -90,7 +80,7 @@ test("shuffledBoard stays inside the solvable parity class", () => {
     return count;
   };
   for (let seed = 1; seed <= 30; seed++) {
-    const board = shuffledBoard(80, mulberry32(seed));
+    const board = shuffledBoard(80, seededRng(seed));
     const rowFromBottom = SIZE - Math.floor(board.indexOf(0) / SIZE);
     assert.equal(
       (inversions(board) + rowFromBottom) % 2,

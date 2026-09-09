@@ -373,7 +373,8 @@ Extends PROJECT §4.2 — this section is authoritative.
     "pattern": "*.reddit.com",
     "phase": "counting",               // "grace" | "counting"
     "phaseStartedAt": 1725273600000,   // epoch ms
-    "lastTickAt": 1725273650000
+    "lastTickAt": 1725273650000,
+    "activeMs": 0                      // credited ms in THIS unbroken session (§9.6)
   },
 
   "runtime": {                         // pass windows, cooldowns, overrides, rollover
