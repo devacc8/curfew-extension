@@ -261,7 +261,9 @@ export function onChanged(handler)        // wraps chrome.storage.onChanged
 Invariants: single storage key `curfew`; every write is a whole-state write
 (values are small, §6.3); writes are skipped when nothing actually changed
 (prevents write spam and spurious `onChanged` events); migration function
-per schema version, pure and tested (`migrate[v1→v2](state)`).
+per schema version, pure and tested: `MIGRATIONS[1]` renames the v1 pass
+vocabulary to v2 (`unblockMinutes` → `passMinutes`, `unblockUntil` →
+`passUntil`, `usage.days[].unblocks` → `.passes`).
 
 **Single writer.** `chrome.storage` has no transactions, so two contexts
 doing read-modify-write on the whole document can lose each other's fields
@@ -333,13 +335,13 @@ credits that landed, so the tests assert the accounting instead of guessing.
 
 ## 6. Storage design
 
-### 6.1 Schema v1 (full)
+### 6.1 Schema v2 (full)
 
 Extends PROJECT §4.2 — this section is authoritative.
 
 ```jsonc
 {
-  "schema": 1,
+  "schema": 2,
     "config": {
       "masterEnabled": true,
       "graceSeconds": 10,
