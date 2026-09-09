@@ -71,15 +71,33 @@ export async function load() {
 
 /** Read -> mutate in place -> write when the snapshot changed.
  *  Mutators mutate the state they receive; return values are ignored
- *  (a returned item is NOT a state replacement — that bit us once). */
-export async function update(mutate, preloaded) {
+ *  (a returned item is NOT a state replacement — that bit us once).
+ *  Service-worker only: pages must go through {@link mutate}. */
+export async function update(mutator, preloaded) {
   const state = preloaded ?? (await load());
   const before = JSON.stringify(state);
-  mutate(state);
+  mutator(state);
   if (JSON.stringify(state) !== before) {
     await chrome.storage.local.set({ [KEY]: state });
   }
   return state;
+}
+
+/**
+ * Page-side write. The service worker owns the document: it applies the named
+ * op (common/ops.js) inside its serialized mutation queue, so a page can never
+ * clobber a concurrent time credit with a stale read-modify-write snapshot.
+ * @param op - op name understood by `applyOp`.
+ * @param payload - op-specific JSON value.
+ * @returns the op result, or null when the worker refused it.
+ */
+export async function mutate(op, payload) {
+  const response = await chrome.runtime.sendMessage({
+    type: "state:apply",
+    op,
+    payload,
+  });
+  return response?.ok ? response.result : null;
 }
 
 /** Subscribe to whole-state changes. */

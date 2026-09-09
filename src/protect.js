@@ -1,4 +1,4 @@
-import { load, update } from "./common/storage.js";
+import { load, mutate } from "./common/storage.js";
 import { generateEquation } from "./common/equation.js";
 import {
   SIZE,
@@ -321,9 +321,7 @@ export async function enableProtection() {
 
   const solved = await solveChallenge(config);
   if (!solved) return false;
-  await update((state) => {
-    state.settings.protection = config;
-  });
+  await mutate("protection.set", { value: config });
   return true;
 }
 
@@ -334,9 +332,7 @@ export async function disableProtection() {
   if (!config) return true;
   const solved = await solveChallenge(config);
   if (!solved) return false;
-  await update((s) => {
-    s.settings.protection = null;
-  });
+  await mutate("protection.set", { value: null });
   return true;
 }
 

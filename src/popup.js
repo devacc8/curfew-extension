@@ -1,11 +1,4 @@
-import {
-  load,
-  update,
-  upsertItem,
-  removeItem,
-  setMasterEnabled,
-  onChanged,
-} from "./common/storage.js";
+import { load, mutate, onChanged } from "./common/storage.js";
 import { parsePattern, patternToString, toMatchOrigins } from "./common/patterns.js";
 import { secondsUsedToday, dailyTotals, effectiveBudgetSeconds } from "./common/budget.js";
 import { isOpen } from "./common/rules.js";
@@ -124,12 +117,8 @@ async function syncAccessFlags() {
       }
     })
   );
-  await update((s) => {
-    for (const [id, ok] of checks) {
-      if (ok === null) continue;
-      const it = s.config.items.find((i) => i.id === id);
-      if (it) it.access = ok ? "granted" : "denied";
-    }
+  await mutate("item.accessBatch", {
+    entries: checks.map(([id, granted]) => ({ id, granted })),
   });
 }
 
@@ -137,9 +126,9 @@ async function grantItem(item) {
   const parsed = parsePattern(item.pattern);
   if (!parsed.ok) return;
   const granted = await requestAccess(parsed.pattern);
-  await update((s) => {
-    const it = s.config.items.find((i) => i.id === item.id);
-    if (it) it.access = granted ? "granted" : "denied";
+  await mutate("item.update", {
+    id: item.id,
+    fields: { access: granted ? "granted" : "denied" },
   });
 }
 
@@ -151,14 +140,16 @@ async function addSite(rawPattern, minutes) {
   }
   const budget = Number.isFinite(minutes) ? Math.max(0, Math.min(1440, minutes)) : 30;
   const patternStr = patternToString(parsed.pattern);
-  await update((state) =>
-    upsertItem(state, { pattern: patternStr, budgetMinutes: budget, access: "denied" })
-  );
+  const created = await mutate("item.add", {
+    pattern: patternStr,
+    budgetMinutes: budget,
+    access: "denied",
+  });
   els.pattern.value = "";
   const granted = await requestAccess(parsed.pattern);
-  await update((state) => {
-    const it = state.config.items.find((i) => i.pattern === patternStr);
-    if (it) it.access = granted ? "granted" : "denied";
+  await mutate("item.update", {
+    id: created?.id,
+    fields: { access: granted ? "granted" : "denied" },
   });
   setStatus(granted ? "addedGranted" : "addedDenied");
   send("flush");
@@ -181,18 +172,12 @@ function buildRow(item, state) {
   enabled.addEventListener("change", async () => {
     if (!enabled.checked) {
       const done = await guarded(async () => {
-        await update((s) => {
-          const it = s.config.items.find((i) => i.id === item.id);
-          if (it) it.enabled = false;
-        });
+        await mutate("item.update", { id: item.id, fields: { enabled: false } });
       });
       if (!done) enabled.checked = true;
       return;
     }
-    await update((s) => {
-      const it = s.config.items.find((i) => i.id === item.id);
-      if (it) it.enabled = true;
-    });
+    await mutate("item.update", { id: item.id, fields: { enabled: true } });
   });
 
   const name = document.createElement("span");
@@ -268,7 +253,7 @@ function buildRow(item, state) {
   remove.textContent = msg("remove");
   remove.addEventListener("click", async () => {
     await guarded(async () => {
-      await update((s) => removeItem(s, item.id));
+      await mutate("item.remove", { id: item.id });
     });
   });
 
@@ -308,7 +293,7 @@ async function render() {
 els.master.addEventListener("change", async () => {
   if (!els.master.checked) {
     const done = await guarded(async () => {
-      await update((state) => setMasterEnabled(state, false));
+      await mutate("master.set", { value: false });
     });
     if (!done) {
       els.master.checked = true;
@@ -316,7 +301,7 @@ els.master.addEventListener("change", async () => {
     }
     return;
   }
-  await update((state) => setMasterEnabled(state, true));
+  await mutate("master.set", { value: true });
 });
 
 els.add.addEventListener("click", () => {
@@ -343,9 +328,10 @@ applyI18n();
 render();
 // Credit whatever the SW has not flushed yet (its tick is 5 min), then
 // repaint: without this the dashboard shows a frozen "1 min left" while
-// the wall is actually due — the freeze the users kept reporting.
-// The access-flag write is chained AFTER the flush on purpose: two
-// concurrent whole-state writes would clobber each other's fields.
+// the wall is actually due — the freeze the users kept reporting. The
+// access-flag write goes through the SW queue too, so it cannot clobber
+// the credit; the chain just keeps the paint after both.
 send("flush")
   .then(() => syncAccessFlags())
+  .catch((error) => console.error("curfew: popup init failed", error))
   .finally(scheduleRender);

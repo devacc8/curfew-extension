@@ -92,6 +92,7 @@ curfew-extension/
       time.js                 # day key, midnight math, clamps (pure)
       patterns.js             # pattern grammar: parse/match/mappings (pure)
       budget.js               # decide, state machine, usage rows, passes (pure)
+      ops.js                  # the mutation vocabulary the SW applies (pure)
       rules.js                # desired DNR rule set (pure projection)
       transfer.js             # export/import envelope, day pruning (pure)
       puzzle.js               # 15-puzzle: solvable shuffle, moves (pure)
@@ -238,7 +239,8 @@ keeps the entire state machine unit-testable without chrome mocks.
 
 ```js
 export async function load()              // -> full state, migrated to current schema
-export async function update(mutatorFn)   // read → mutate → write under one key
+export async function update(mutatorFn)   // read → mutate → write under one key (SW only)
+export async function mutate(op, payload) // page-side write: sends state:apply to the SW
 export function onChanged(handler)        // wraps chrome.storage.onChanged
 ```
 
@@ -247,7 +249,25 @@ Invariants: single storage key `curfew`; every write is a whole-state write
 (prevents write spam and spurious `onChanged` events); migration function
 per schema version, pure and tested (`migrate[v1→v2](state)`).
 
-### 5.5 `rules.js` — enforcement projection
+**Single writer.** `chrome.storage` has no transactions, so two contexts
+doing read-modify-write on the whole document can lose each other's fields
+(a page toggling a checkbox while the SW credits a tick would drop the
+credit). Pages therefore never write: they send
+`{type: "state:apply", op, payload}` and the service worker applies the
+named op (`common/ops.js`) inside its serialized mutation queue (§8.5). An
+invariant test (§12.2) fails the build if any other `src/` file touches
+`chrome.storage.local` or imports the low-level `update()`.
+
+### 5.5 `ops.js` — the mutation vocabulary
+
+`applyOp(state, op, payload)` is the complete set of state mutations, pure
+and unit-tested: `item.add`, `item.update` (enabled / budgetMinutes /
+access only), `item.accessBatch`, `item.remove`, `master.set`,
+`passes.set`, `protection.set`, `state.import` (migrated and pruned by the
+SW, never trusted raw). Each returns a JSON-serializable result — the page
+gets the created item's id back from `item.add`. Unknown ops throw.
+
+### 5.6 `rules.js` — enforcement projection
 
 ```js
 /** No-rule-means-open, from the enforcement point of view. Precedence:
@@ -262,7 +282,7 @@ export function isOpen(state, item, day, nowMs)
 export function desiredRules(state, { day, nowMs, blockedPageFor })
 ```
 
-### 5.6 `transfer.js` — export/import + retention
+### 5.7 `transfer.js` — export/import + retention
 
 ```js
 /** One-file export: { kind, version, exportedAt, state } (§3.6). */

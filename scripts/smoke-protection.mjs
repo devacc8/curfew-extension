@@ -299,6 +299,32 @@ try {
     console.log("PASS: a stale wall burns exactly one pass");
   }
 
+  // Pages write through the worker now: adding a site from the options page
+  // must land as an item (with the typed budget) even when the permission
+  // prompt cannot be granted in this environment.
+  await page.goto(`chrome-extension://${extensionId}/src/options.html`, {
+    waitUntil: "networkidle0",
+  });
+  await page.type("#pattern", "e2e-op.test");
+  await page.evaluate(() => {
+    document.getElementById("minutes").value = "7";
+  });
+  await page.click("#add");
+  await sleep(700);
+  const added = await page.evaluate(async () => {
+    const state = await new Promise((res) =>
+      chrome.storage.local.get("curfew", (d) => res(d.curfew))
+    );
+    return state?.config?.items?.find((i) => i.pattern === "e2e-op.test") ?? null;
+  });
+  console.log("page op add:", JSON.stringify(added));
+  if (!added || added.budgetMinutes !== 7 || !added.ruleId) {
+    console.log("FAIL: the options page could not write through the worker");
+    process.exitCode = 1;
+  } else {
+    console.log("PASS: the options page writes through the worker");
+  }
+
   // the wall page must load with zero script errors (module imports etc.)
   await page.goto(`chrome-extension://${extensionId}/src/blocked.html?domain=github.com`, {
     waitUntil: "networkidle0",

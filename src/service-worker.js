@@ -11,6 +11,7 @@ import {
   dropIfMidnightCrossed,
 } from "./common/budget.js";
 import { desiredRules, isOpen, resolvePassRequest } from "./common/rules.js";
+import { applyOp } from "./common/ops.js";
 import { pruneDays } from "./common/transfer.js";
 
 const TICK = "tick";
@@ -382,6 +383,16 @@ function onMessage(message, _sender, sendResponse) {
         await reconcile(state);
         await bounceClosedTabs(state);
         sendResponse({ ok: true });
+      } else if (message?.type === "state:apply") {
+        // The ONLY write path for pages: applied here, inside the serialized
+        // queue, so a page write cannot clobber a concurrent credit.
+        let result;
+        const state = await update((s) => {
+          result = applyOp(s, message.op, message.payload);
+        });
+        await reconcile(state);
+        await bounceClosedTabs(state);
+        sendResponse({ ok: true, result });
       } else {
         sendResponse({ ok: false });
       }

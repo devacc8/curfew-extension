@@ -27,17 +27,24 @@ function stubChromeStorage() {
           },
         },
       },
+      runtime: {
+        async sendMessage() {
+          throw new Error("sendMessage stub not installed");
+        },
+      },
     },
     data,
   };
 }
 
 function setChrome() {
-  globalThis.chrome = stubChromeStorage().api;
+  const stub = stubChromeStorage();
+  globalThis.chrome = stub.api;
+  return stub;
 }
 
 setChrome();
-const { load, update, onChanged, upsertItem, removeItem, setMasterEnabled } = await import(
+const { load, update, mutate, onChanged, upsertItem, removeItem, setMasterEnabled } = await import(
   "../src/common/storage.js"
 );
 
@@ -185,4 +192,24 @@ test("onChanged fires with the new whole state", async () => {
   await update((state) => setMasterEnabled(state, false));
   await update((state) => setMasterEnabled(state, true));
   assert.deepEqual(seen, [false, true]);
+});
+
+test("mutate sends state:apply to the worker and returns the op result", async () => {
+  const stub = setChrome();
+  const seen = [];
+  stub.api.runtime.sendMessage = async (message) => {
+    seen.push(message);
+    return { ok: true, result: { id: "u9" } };
+  };
+  const result = await mutate("item.add", { pattern: "x.com" });
+  assert.deepEqual(result, { id: "u9" });
+  assert.deepEqual(seen, [
+    { type: "state:apply", op: "item.add", payload: { pattern: "x.com" } },
+  ]);
+});
+
+test("mutate returns null when the worker refuses the op", async () => {
+  const stub = setChrome();
+  stub.api.runtime.sendMessage = async () => ({ ok: false });
+  assert.equal(await mutate("nope", {}), null);
 });

@@ -111,3 +111,28 @@ test("common/ purity: chrome.* only in storage.js", () => {
     assert.equal(/\bchrome\s*\./.test(text), false, `${file} references chrome`);
   }
 });
+
+test("the state document has exactly one writer: the service worker", () => {
+  const storagePath = join(ROOT, "src", "common", "storage.js");
+  const swPath = join(ROOT, "src", "service-worker.js");
+  for (const file of jsFiles) {
+    const text = readFileSync(file, "utf8");
+    if (file !== storagePath) {
+      assert.equal(
+        /chrome\.storage\.local\.(set|remove)\b/.test(text),
+        false,
+        `${file} writes chrome.storage.local directly`
+      );
+    }
+    if (file === storagePath || file === swPath) continue;
+    // Pages must go through mutate(); importing update() would let a page
+    // read-modify-write over a concurrent credit (no storage transactions).
+    for (const match of text.matchAll(/import\s*\{([^}]*)\}\s*from\s*["'][^"']*storage\.js["']/g)) {
+      assert.equal(
+        /\bupdate\b/.test(match[1]),
+        false,
+        `${file} imports the low-level update(); use mutate()`
+      );
+    }
+  }
+});

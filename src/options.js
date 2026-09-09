@@ -1,13 +1,6 @@
-import {
-  load,
-  update,
-  upsertItem,
-  removeItem,
-  setMasterEnabled,
-  onChanged,
-} from "./common/storage.js";
+import { load, mutate, onChanged } from "./common/storage.js";
 import { parsePattern, patternToString, toMatchOrigins } from "./common/patterns.js";
-import { encodeExport, decodeExport, pruneDays } from "./common/transfer.js";
+import { encodeExport, decodeExport } from "./common/transfer.js";
 import { dayKey } from "./common/time.js";
 import { guarded, enableProtection, disableProtection } from "./protect.js";
 
@@ -70,14 +63,16 @@ async function addSite() {
   const minutes = Number(els.minutes.value);
   const budget = Number.isFinite(minutes) ? Math.max(0, Math.min(1440, minutes)) : 30;
   const patternStr = patternToString(parsed.pattern);
-  await update((state) =>
-    upsertItem(state, { pattern: patternStr, budgetMinutes: budget, access: "denied" })
-  );
+  const created = await mutate("item.add", {
+    pattern: patternStr,
+    budgetMinutes: budget,
+    access: "denied",
+  });
   els.pattern.value = "";
   const granted = await requestAccess(parsed.pattern);
-  await update((state) => {
-    const it = state.config.items.find((i) => i.pattern === patternStr);
-    if (it) it.access = granted ? "granted" : "denied";
+  await mutate("item.update", {
+    id: created?.id,
+    fields: { access: granted ? "granted" : "denied" },
   });
   setStatus(granted ? "addedGranted" : "addedDenied");
 }
@@ -91,18 +86,12 @@ function buildRow(item) {
   enabled.addEventListener("change", async () => {
     if (!enabled.checked) {
       const done = await guarded(async () => {
-        await update((state) => {
-          const it = state.config.items.find((i) => i.id === item.id);
-          if (it) it.enabled = false;
-        });
+        await mutate("item.update", { id: item.id, fields: { enabled: false } });
       });
       if (!done) enabled.checked = true;
       return;
     }
-    await update((state) => {
-      const it = state.config.items.find((i) => i.id === item.id);
-      if (it) it.enabled = true;
-    });
+    await mutate("item.update", { id: item.id, fields: { enabled: true } });
   });
 
   const name = document.createElement("span");
@@ -118,10 +107,7 @@ function buildRow(item) {
   budget.addEventListener("change", async () => {
     const v = Math.max(0, Math.min(1440, Number(budget.value) || 0));
     const apply = async () => {
-      await update((state) => {
-        const it = state.config.items.find((i) => i.id === item.id);
-        if (it) it.budgetMinutes = v;
-      });
+      await mutate("item.update", { id: item.id, fields: { budgetMinutes: v } });
       budget.value = v;
     };
     if (v <= item.budgetMinutes) return apply();
@@ -148,9 +134,9 @@ function buildRow(item) {
       const parsed = parsePattern(item.pattern);
       if (!parsed.ok) return;
       const ok = await requestAccess(parsed.pattern);
-      await update((s) => {
-        const it = s.config.items.find((i) => i.id === item.id);
-        if (it) it.access = ok ? "granted" : "denied";
+      await mutate("item.update", {
+        id: item.id,
+        fields: { access: ok ? "granted" : "denied" },
       });
     });
     li.append(grant);
@@ -161,7 +147,7 @@ function buildRow(item) {
   remove.textContent = msg("remove");
   remove.addEventListener("click", async () => {
     await guarded(async () => {
-      await update((state) => removeItem(state, item.id));
+      await mutate("item.remove", { id: item.id });
     });
   });
   li.append(remove);
@@ -204,7 +190,7 @@ async function render() {
 els.master.addEventListener("change", async () => {
   if (!els.master.checked) {
     const done = await guarded(async () => {
-      await update((state) => setMasterEnabled(state, false));
+      await mutate("master.set", { value: false });
     });
     if (!done) {
       els.master.checked = true;
@@ -212,7 +198,7 @@ els.master.addEventListener("change", async () => {
     }
     return;
   }
-  await update((state) => setMasterEnabled(state, true));
+  await mutate("master.set", { value: true });
 });
 
 els.add.addEventListener("click", addSite);
@@ -252,12 +238,8 @@ async function reverifyAccess() {
       }
     })
   );
-  await update((s) => {
-    for (const [id, ok] of checks) {
-      if (ok === null) continue;
-      const it = s.config.items.find((i) => i.id === id);
-      if (it) it.access = ok ? "granted" : "denied";
-    }
+  await mutate("item.accessBatch", {
+    entries: checks.map(([id, granted]) => ({ id, granted })),
   });
 }
 
@@ -268,8 +250,8 @@ async function importData(file) {
     els.dataStatus.textContent = msg("importFailed");
     return;
   }
-  pruneDays(result.state, 60);
-  await update((s) => Object.assign(s, result.state));
+  // The SW migrates and prunes the payload before it touches the document.
+  await mutate("state.import", { imported: result.state });
   await reverifyAccess();
   els.dataStatus.textContent = msg("imported");
 }
@@ -304,9 +286,7 @@ els.passesLimit.addEventListener("change", async () => {
   const previous = (await load()).config.unblockPassesPerDay;
   const value = Math.max(0, Math.min(99, Number(els.passesLimit.value) || 0));
   const apply = async () => {
-    await update((state) => {
-      state.config.unblockPassesPerDay = value;
-    });
+    await mutate("passes.set", { value });
     els.passesLimit.value = value;
   };
   if (value <= previous) return apply();
