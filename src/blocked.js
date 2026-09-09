@@ -160,6 +160,15 @@ async function leaveIfStale() {
       location.href = `https://${domain}/`;
       return;
     }
+    // Halfway through, ask the worker to drop THIS rule directly: a failed
+    // batch reconcile must not be able to trap the user.
+    if (attempt === 7) {
+      try {
+        await chrome.runtime.sendMessage({ type: "unstick", itemId: item.id });
+      } catch {
+        // worker asleep or gone; the remaining attempts still apply
+      }
+    }
   }
   leaving = false;
 }

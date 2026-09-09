@@ -1,6 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { closeReason, isOpen, desiredRules, resolvePassRequest } from "../src/common/rules.js";
+import {
+  closeReason,
+  diffRules,
+  desiredRules,
+  isOpen,
+  resolvePassRequest,
+} from "../src/common/rules.js";
 import { passesUsedToday } from "../src/common/budget.js";
 
 const DAY = "2026-09-02";
@@ -320,4 +326,41 @@ test("closeReason names the blocker (or null when open)", () => {
   });
   denied.runtime.cooldownUntil = { "*.reddit.com": NOW + 60_000 };
   assert.equal(closeReason(denied, denied.config.items[0], DAY, NOW), null);
+});
+
+const rule = (id, host) => ({
+  id,
+  priority: 1,
+  action: { type: "redirect", redirect: { extensionPath: `/b?d=${host}` } },
+  condition: { urlFilter: `||${host}/`, resourceTypes: ["main_frame"] },
+});
+
+test("diffRules: identical rules are left alone", () => {
+  const desired = [rule(1001, "reddit.com")];
+  assert.deepEqual(diffRules(desired, [structuredClone(desired[0])]), {
+    removeRuleIds: [],
+    addRules: [],
+  });
+});
+
+test("diffRules: a stale rule is removed", () => {
+  assert.deepEqual(diffRules([], [rule(1001, "x.com")]), {
+    removeRuleIds: [1001],
+    addRules: [],
+  });
+});
+
+test("diffRules: a changed action or condition is replaced", () => {
+  const desired = [rule(1001, "x.com")];
+  const stale = structuredClone(desired[0]);
+  stale.condition = { urlFilter: "||x.com/", resourceTypes: ["main_frame"], excludedInitiatorDomains: [] };
+  assert.deepEqual(diffRules(desired, [stale]), {
+    removeRuleIds: [1001],
+    addRules: desired,
+  });
+});
+
+test("diffRules: missing and empty input are safe", () => {
+  assert.deepEqual(diffRules(undefined, undefined), { removeRuleIds: [], addRules: [] });
+  assert.deepEqual(diffRules([rule(1, "a.com")], []), { removeRuleIds: [1], addRules: [rule(1, "a.com")] });
 });

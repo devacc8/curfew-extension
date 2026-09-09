@@ -63,6 +63,34 @@ export function resolvePassRequest(state, item, day, nowMs, limit) {
 }
 
 /**
+ * Diff the desired rule set against what is installed. Pure, so the tricky
+ * cases (a rule whose action changed, a rule that should no longer exist,
+ * an unchanged rule that must not be touched) are unit-tested instead of
+ * discovered in the field.
+ * @returns {{ removeRuleIds: number[], addRules: any[] }} - `addRules` are
+ *  ready-made DNR rules (their shape is owned by the DNR API).
+ */
+export function diffRules(desired, actual) {
+  const actualById = new Map((actual ?? []).map((rule) => [rule.id, rule]));
+  const removeRuleIds = [];
+  const addRules = [];
+  for (const rule of desired ?? []) {
+    const existing = actualById.get(rule.id);
+    const same =
+      existing &&
+      JSON.stringify(existing.action) === JSON.stringify(rule.action) &&
+      JSON.stringify(existing.condition) === JSON.stringify(rule.condition);
+    if (!same) {
+      removeRuleIds.push(rule.id);
+      addRules.push(rule);
+    }
+    actualById.delete(rule.id);
+  }
+  for (const id of actualById.keys()) removeRuleIds.push(id);
+  return { removeRuleIds, addRules };
+}
+
+/**
  * The desired set of dynamic DNR rules — a pure projection of storage.
  * The service worker diffs this against getDynamicRules() and reconciles.
  */

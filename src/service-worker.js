@@ -8,7 +8,7 @@ import {
   pruneRuntime,
   applyRollover,
 } from "./common/tracking.js";
-import { desiredRules, isOpen, resolvePassRequest } from "./common/rules.js";
+import { desiredRules, diffRules, isOpen, resolvePassRequest } from "./common/rules.js";
 import { applyOp } from "./common/ops.js";
 
 const TICK = "tick";
@@ -256,32 +256,34 @@ async function reconcile(state) {
     blockedPageFor,
   });
   const actual = await chrome.declarativeNetRequest.getDynamicRules();
-  const actualById = new Map(actual.map((r) => [r.id, r]));
-  const removeRuleIds = [];
-  const addRules = [];
-  for (const rule of desired) {
-    const existing = actualById.get(rule.id);
-    const same =
-      existing &&
-      JSON.stringify(existing.action) === JSON.stringify(rule.action) &&
-      JSON.stringify(existing.condition) === JSON.stringify(rule.condition);
-    if (!same) {
-      removeRuleIds.push(rule.id);
-      addRules.push(rule);
-    }
-    actualById.delete(rule.id);
-  }
-  for (const id of actualById.keys()) removeRuleIds.push(id);
+  const { removeRuleIds, addRules } = diffRules(desired, actual);
   if (!removeRuleIds.length && !addRules.length) return;
   try {
     await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds, addRules });
     if (addRules.length) queryState = "yes";
   } catch (error) {
-    if (queryState === "unknown") {
-      queryState = "no";
-      return reconcile(state);
+    // A single bad id or rule must never leave the user trapped behind a rule
+    // that should be gone: retry removals one at a time and say exactly which
+    // one failed. (Field report: a stale rule survived every reconcile because
+    // the batch call threw and the failure was swallowed.)
+    console.error("curfew: reconcile batch failed", error);
+    for (const id of removeRuleIds) {
+      try {
+        await chrome.declarativeNetRequest.updateDynamicRules({
+          removeRuleIds: [id],
+          addRules: [],
+        });
+      } catch (single) {
+        console.error("curfew: could not remove rule", id, single);
+      }
     }
-    throw error;
+    if (addRules.length) {
+      if (queryState === "unknown") {
+        queryState = "no";
+        return reconcile(state);
+      }
+      console.error("curfew: could not install rules", addRules.map((r) => r.id));
+    }
   }
 }
 
@@ -327,9 +329,15 @@ async function flushTick() {
 
 async function rollover(state) {
   const now = Date.now();
-  return update((s) => {
-    applyRollover(s, now, KEEP_DAYS);
-  }, state);
+  try {
+    return await update((s) => {
+      applyRollover(s, now, KEEP_DAYS);
+    }, state);
+  } catch (error) {
+    // A rollover failure must not stop the caller from reconciling rules.
+    console.error("curfew: rollover failed; continuing", error);
+    return state;
+  }
 }
 
 async function onAlarm(alarm) {
@@ -392,6 +400,23 @@ function onMessage(message, _sender, sendResponse) {
         await reconcile(state);
         await bounceClosedTabs(state);
         sendResponse({ ok: true });
+      } else if (message?.type === "unstick") {
+        // Escape hatch for a wall whose rule survived a failed batch
+        // reconcile: remove exactly this item's rule, then re-reconcile.
+        const loaded = await load();
+        const item = loaded.config.items.find((i) => i.id === message.itemId);
+        if (!item) return sendResponse({ ok: false });
+        try {
+          await chrome.declarativeNetRequest.updateDynamicRules({
+            removeRuleIds: [item.ruleId],
+            addRules: [],
+          });
+          sendResponse({ ok: true });
+        } catch (error) {
+          console.error("curfew: unstick failed for rule", item.ruleId, error);
+          sendResponse({ ok: false });
+        }
+        await reconcile(await load());
       } else if (message?.type === "state:apply") {
         // The ONLY write path for pages: applied here, inside the serialized
         // queue, so a page write cannot clobber a concurrent credit.
