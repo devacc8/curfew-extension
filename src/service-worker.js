@@ -218,6 +218,14 @@ function blockedPageFor(host) {
   return `${BLOCKED_PAGE}?domain=${encodeURIComponent(host)}`;
 }
 
+/** Tell extension pages the rule set changed: a wall can leave the instant
+ *  its rule is gone instead of polling for it. */
+function announceRulesChanged() {
+  chrome.runtime.sendMessage({ type: "rules:changed" }).catch(() => {
+    // No listener (no wall open) — the normal case.
+  });
+}
+
 /**
  * Project the projected budget-exhaustion moment into a one-shot alarm, so
  * the wall lands when the allowance is actually spent instead of on the next
@@ -259,6 +267,7 @@ async function reconcile(state) {
   try {
     await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds, addRules });
     if (addRules.length) queryState = "yes";
+    announceRulesChanged();
   } catch (error) {
     // A single bad id or rule must never leave the user trapped behind a rule
     // that should be gone: retry removals one at a time and say exactly which
@@ -282,6 +291,7 @@ async function reconcile(state) {
       }
       console.error("curfew: could not install rules", addRules.map((r) => r.id));
     }
+    announceRulesChanged();
   }
 }
 

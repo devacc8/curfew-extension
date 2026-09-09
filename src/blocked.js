@@ -33,6 +33,10 @@ if (!domain) {
   // A stale wall heals itself: rollover, any storage change or a periodic
   // tick re-evaluates the curfew and turns the domain into a way out.
   chrome.storage.onChanged.addListener(() => refresh());
+  // The worker pushes this after every rule change; no polling needed.
+  chrome.runtime.onMessage.addListener((message) => {
+    if (message?.type === "rules:changed") refresh();
+  });
   setInterval(() => {
     if (document.visibilityState === "visible") refresh();
   }, 60_000);
@@ -141,8 +145,8 @@ async function leaveIfStale() {
   leaving = true;
   // Bounded retry, never a hot loop: the rule is normally removed by the
   // reconcile our init flush triggers, but a slow one must not strand the
-  // user. Give up after ~12 s and leave the clickable link in place.
-  for (let attempt = 0; attempt < 15; attempt += 1) {
+  // user. Give up after ~6 s and leave the clickable link in place.
+  for (let attempt = 0; attempt < 8; attempt += 1) {
     await new Promise((resolve) => setTimeout(resolve, 800));
     if (!describeItem(state, item, Date.now()).open) break;
     if (await ruleGone()) {
@@ -151,7 +155,7 @@ async function leaveIfStale() {
     }
     // Halfway through, ask the worker to drop THIS rule directly: a failed
     // batch reconcile must not be able to trap the user.
-    if (attempt === 7) {
+    if (attempt === 4) {
       try {
         await chrome.runtime.sendMessage({ type: "unstick", itemId: item.id });
       } catch {
