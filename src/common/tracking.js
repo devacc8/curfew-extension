@@ -4,7 +4,7 @@ import {
   promoteGrace,
   recoveryCredit,
   capCredits,
-  dropIfMidnightCrossed,
+  splitCreditsAtMidnight,
   applyCredit,
 } from "./budget.js";
 import { pruneDays } from "./transfer.js";
@@ -20,13 +20,11 @@ import { pruneDays } from "./transfer.js";
  * assert the accounting rather than guess at it.
  */
 
-/** Apply one credit list: cap it, drop what spans midnight, book the rest. */
-function commitCredits(state, credits, startAtMs, nowMs, maxCreditMs) {
-  const today = dayKey(nowMs);
-  const lastDay = startAtMs === null ? null : dayKey(startAtMs);
-  const safe = dropIfMidnightCrossed(capCredits(credits, maxCreditMs), lastDay, today);
-  for (const credit of safe) applyCredit(state, credit, today);
-  return safe;
+/** Cap one credit, cut it at midnight, book each part to its own day. */
+function bookCredit(state, credit, startAtMs, maxCreditMs) {
+  const parts = splitCreditsAtMidnight(capCredits([credit], maxCreditMs), startAtMs);
+  for (const part of parts) applyCredit(state, part, part.day);
+  return parts;
 }
 
 /**
@@ -37,38 +35,52 @@ function commitCredits(state, credits, startAtMs, nowMs, maxCreditMs) {
  * @param options.fromWake - true on the first event after a cold start, when
  *   the previous session's uncredited window must be recovered.
  * @param options.maxCreditMs - ceiling for any single credit.
- * @returns the credits that landed.
+ * @returns the credits that landed, each with its `day`.
  */
 export function trackEnvironment(state, event, nowMs, options = {}) {
   const maxCreditMs = options.maxCreditMs ?? Number.POSITIVE_INFINITY;
-  const credits = [];
+  const booked = [];
   const startSession = state.session;
-  const startAtMs = startSession ? startSession.lastTickAt : null;
 
   if (options.fromWake && startSession) {
     // Promote first: a visit that outlived its grace window while the worker
     // was dead must credit its post-grace part, not vanish whole.
     const promoted = promoteGrace(startSession, state.config, nowMs);
     const recovery = recoveryCredit(promoted, nowMs, maxCreditMs);
-    if (recovery) credits.push(recovery);
+    if (recovery) {
+      booked.push(...bookCredit(state, recovery, promoted.lastTickAt, maxCreditMs));
+    }
     state.session = { ...promoted, lastTickAt: nowMs, phaseStartedAt: nowMs };
   }
 
+  // The credit window starts where the session will actually be credited
+  // from: the end of the grace window when this event promotes it, otherwise
+  // its current lastTickAt. Using the raw session start would misbook the
+  // grace seconds across midnight.
+  const windowStart = state.session
+    ? promoteGrace(state.session, state.config, nowMs).lastTickAt
+    : nowMs;
   const moved = transition(state.session, event, state.config, nowMs);
   state.session = moved.state;
-  credits.push(...moved.credits);
+  for (const credit of moved.credits) {
+    booked.push(...bookCredit(state, credit, windowStart, maxCreditMs));
+  }
 
-  return commitCredits(state, credits, startAtMs, nowMs, maxCreditMs);
+  return booked;
 }
 
 /** One flush/tick of the accruing session; a no-op without a session. */
 export function trackTick(state, nowMs, options = {}) {
   const maxCreditMs = options.maxCreditMs ?? Number.POSITIVE_INFINITY;
   if (!state.session) return [];
-  const startAtMs = state.session.lastTickAt;
+  const windowStart = promoteGrace(state.session, state.config, nowMs).lastTickAt;
   const moved = transition(state.session, { type: "tick" }, state.config, nowMs);
   state.session = moved.state;
-  return commitCredits(state, moved.credits, startAtMs, nowMs, maxCreditMs);
+  const booked = [];
+  for (const credit of moved.credits) {
+    booked.push(...bookCredit(state, credit, windowStart, maxCreditMs));
+  }
+  return booked;
 }
 
 /** Drop expired pass windows: their one-shot alarm has already re-added the

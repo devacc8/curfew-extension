@@ -10,7 +10,7 @@ import {
   promoteGrace,
   recoveryCredit,
   capCredits,
-  dropIfMidnightCrossed,
+  splitCreditsAtMidnight,
   effectiveBudgetSeconds,
   passBonusSeconds,
   nextExhaustionAt,
@@ -322,18 +322,34 @@ test("capCredits keeps normal ticks and drops zero-size credits", () => {
   assert.deepEqual(out, [{ pattern: "a", ms: 5000 }]);
 });
 
-test("dropIfMidnightCrossed: credits spanning midnight are phantom and dropped", () => {
-  const credits = [{ pattern: "*.reddit.com", ms: 6 * 60 * 1000 }];
-  assert.deepEqual(dropIfMidnightCrossed(credits, "2026-09-02", "2026-09-03"), []);
+test("splitCreditsAtMidnight: a credit inside one day keeps that day", () => {
+  const start = new Date(2026, 8, 2, 12, 0, 0).getTime();
+  assert.deepEqual(splitCreditsAtMidnight([{ pattern: "*.reddit.com", ms: 5000 }], start), [
+    { pattern: "*.reddit.com", ms: 5000, day: "2026-09-02" },
+  ]);
 });
 
-test("dropIfMidnightCrossed: same-day credits pass through", () => {
-  const credits = [{ pattern: "*.reddit.com", ms: 5000 }];
-  assert.deepEqual(
-    dropIfMidnightCrossed(credits, "2026-09-02", "2026-09-02"),
-    credits
-  );
-  assert.deepEqual(dropIfMidnightCrossed(credits, null, "2026-09-02"), credits);
+test("splitCreditsAtMidnight: a credit across midnight is cut at the boundary", () => {
+  const start = new Date(2026, 8, 2, 23, 58, 0).getTime();
+  const credits = [{ pattern: "*.reddit.com", ms: 4 * 60 * 1000 }];
+  assert.deepEqual(splitCreditsAtMidnight(credits, start), [
+    { pattern: "*.reddit.com", ms: 2 * 60 * 1000, day: "2026-09-02" },
+    { pattern: "*.reddit.com", ms: 2 * 60 * 1000, day: "2026-09-03" },
+  ]);
+});
+
+test("splitCreditsAtMidnight: a credit starting at midnight belongs to the new day", () => {
+  const start = new Date(2026, 8, 3, 0, 0, 0).getTime();
+  assert.deepEqual(splitCreditsAtMidnight([{ pattern: "x.com", ms: 1000 }], start), [
+    { pattern: "x.com", ms: 1000, day: "2026-09-03" },
+  ]);
+});
+
+test("splitCreditsAtMidnight: empty and zero-size credits vanish", () => {
+  const start = new Date(2026, 8, 2, 12, 0, 0).getTime();
+  assert.deepEqual(splitCreditsAtMidnight([], start), []);
+  assert.deepEqual(splitCreditsAtMidnight([{ pattern: "x.com", ms: 0 }], start), []);
+  assert.deepEqual(splitCreditsAtMidnight(undefined, start), []);
 });
 
 test("effectiveBudgetSeconds: base budget alone", () => {

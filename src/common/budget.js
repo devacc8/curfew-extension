@@ -1,4 +1,4 @@
-import { dayKey , elapsedMs, capMs } from "./time.js";
+import { dayKey, elapsedMs, capMs, nextLocalMidnight } from "./time.js";
 
 /** Hard ceiling for any single credit: a tick or stop event that arrives
  *  late (sleep, missed alarms, dead SW) may report a huge raw elapsed —
@@ -9,12 +9,31 @@ export function capCredits(credits, maxMs) {
     .filter((c) => c.ms > 0);
 }
 
-/** Credits whose window spans midnight are phantom (sleep / powered-off
- *  time bridging 00:00) — drop them entirely. Normal ticking never spans
- *  midnight: each 5-min tick is credited to its own day. */
-export function dropIfMidnightCrossed(credits, lastDay, today) {
-  if (lastDay && today && lastDay !== today) return [];
-  return credits;
+/**
+ * Cut credits at the local midnight they cross, booking each part to the day
+ * it actually happened instead of throwing the whole credit away. `startAtMs`
+ * is the start of the (contiguous) credit window. Returns
+ * `[{ pattern, ms, day }]`.
+ */
+export function splitCreditsAtMidnight(credits, startAtMs) {
+  const out = [];
+  for (const credit of credits ?? []) {
+    if (!(credit.ms > 0)) continue;
+    const midnightMs = nextLocalMidnight(new Date(startAtMs)).getTime();
+    if (startAtMs + credit.ms <= midnightMs) {
+      out.push({ pattern: credit.pattern, ms: credit.ms, day: dayKey(startAtMs) });
+      continue;
+    }
+    const before = midnightMs - startAtMs;
+    if (before > 0) {
+      out.push({ pattern: credit.pattern, ms: before, day: dayKey(startAtMs) });
+    }
+    const after = credit.ms - before;
+    if (after > 0) {
+      out.push({ pattern: credit.pattern, ms: after, day: dayKey(midnightMs) });
+    }
+  }
+  return out;
 }
 
 /**

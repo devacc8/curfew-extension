@@ -501,9 +501,10 @@ The SW can die any time; correctness must not depend on it staying alive.
   of absence — then resumes from `now`.
 - **Every credit path is double-guarded** (a real bug: an overnight tick
   once credited 600 unmin capped): `capCredits` caps each credit at 6 min,
-  and a credit whose window **spans local midnight is dropped entirely**
-  (phantom time bridging 00:00). Normal ticking never spans midnight —
-  each 5-min tick is credited to its own day.
+  and a credit whose window **spans local midnight is cut at the boundary**
+  (`splitCreditsAtMidnight`) and booked to each day separately — dropping it
+  whole (the original rule) lost up to a tick of real usage. Normal ticking
+  never spans midnight: each 5-min tick is credited to its own day.
 - Clock jumps backwards: `elapsedMs` clamps at 0.
 - **Browser restart (`runtime.onStartup`)**: pending credit from the
   previous run is **discarded** — the browser was closed, so crediting it

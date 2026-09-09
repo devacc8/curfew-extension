@@ -115,8 +115,7 @@ test("simulation: a visit that never leaves is capped only by the tick cadence",
   assert.equal(credited, 10 * MIN - 10 * S);
 });
 
-test("pruneRuntime drops expired windows and keeps live ones", () => {
-  const state = fresh();
+test("pruneRuntime drops expired windows and keeps live ones", () => {  const state = fresh();
   state.runtime.unblockUntil = { "x.com": T0 + S, "y.com": T0 - 1 };
   assert.equal(pruneRuntime(state, T0), true);
   assert.deepEqual(state.runtime.unblockUntil, { "x.com": T0 + S });
@@ -143,4 +142,21 @@ test("applyRollover keeps only the newest day rows", () => {
   }
   applyRollover(state, T0, 3);
   assert.equal(Object.keys(state.usage.days).length, 3);
+});
+
+test("simulation: a visit across midnight books each part to its own day", () => {
+  const state = fresh();
+  const base = new Date(2026, 8, 9, 23, 58, 0, 0).getTime();
+  const env = (pattern, canCount) => ({ type: "environment", pattern, canCount });
+  trackEnvironment(state, env("x.com", true), base, { fromWake: true, maxCreditMs: CAP });
+  const landed = trackEnvironment(state, env(null, false), base + 4 * MIN, {
+    maxCreditMs: CAP,
+  });
+  // 3m50s of credit starting at 23:58:10: 1m50s before midnight, 2m after.
+  assert.deepEqual(landed, [
+    { pattern: "x.com", ms: 110 * S, day: "2026-09-09" },
+    { pattern: "x.com", ms: 120 * S, day: "2026-09-10" },
+  ]);
+  assert.equal(secondsUsedToday(state, "x.com", "2026-09-09"), 110);
+  assert.equal(secondsUsedToday(state, "x.com", "2026-09-10"), 120);
 });
