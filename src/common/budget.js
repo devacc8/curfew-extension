@@ -84,6 +84,22 @@ export function passesLeftToday(state, day, limit) {
 }
 
 /**
+ * Promote a GRACE session whose window has already elapsed into COUNTING,
+ * backfilling lastTickAt to the end of the grace window. Pure and exported
+ * because the SW's wake recovery needs the same promotion: a visit that
+ * outlives its grace window while the worker sleeps would otherwise be
+ * discarded whole — the classic "a 40-second visit counted as zero" loss.
+ */
+export function promoteGrace(session, config, nowMs) {
+  const graceMs = (config?.graceSeconds ?? 0) * 1000;
+  if (session?.phase === "grace" && nowMs - session.phaseStartedAt >= graceMs) {
+    const startedAt = session.phaseStartedAt + graceMs;
+    return { ...session, phase: "counting", phaseStartedAt: startedAt, lastTickAt: startedAt };
+  }
+  return session;
+}
+
+/**
  * Pure reducer for the tracking state machine (tech doc §8).
  * state: null | { pattern, phase: "grace"|"counting", phaseStartedAt, lastTickAt }
  * events: { type: "environment", pattern, canCount } | { type: "tick" }
@@ -92,20 +108,16 @@ export function passesLeftToday(state, day, limit) {
  */
 export function transition(state, event, config, nowMs) {
   const credits = [];
-  const graceMs = (config?.graceSeconds ?? 0) * 1000;
   const countable = event?.type === "environment" && event.pattern && event.canCount;
 
   if (event?.type === "tick") {
-    let next = state;
-    if (state?.phase === "counting") {
-      const ms = elapsedMs(state.lastTickAt, nowMs);
-      if (ms > 0) credits.push({ pattern: state.pattern, ms });
-      next = { ...state, lastTickAt: nowMs };
-    } else if (state?.phase === "grace" && nowMs - state.phaseStartedAt >= graceMs) {
-      const startedAt = state.phaseStartedAt + graceMs;
-      next = { ...state, phase: "counting", phaseStartedAt: startedAt, lastTickAt: startedAt };
+    const promoted = promoteGrace(state, config, nowMs);
+    if (promoted?.phase === "counting") {
+      const ms = elapsedMs(promoted.lastTickAt, nowMs);
+      if (ms > 0) credits.push({ pattern: promoted.pattern, ms });
+      return { state: { ...promoted, lastTickAt: nowMs }, credits };
     }
-    return { state: next, credits };
+    return { state: promoted, credits };
   }
 
   const freshSession = (pattern) => ({
@@ -122,6 +134,9 @@ export function transition(state, event, config, nowMs) {
     };
   }
 
+  // Promote BEFORE branching on the pattern: a departure (blur, tab switch)
+  // must still credit the part of the visit that outlived the grace window.
+  state = promoteGrace(state, config, nowMs);
   const same = countable && event.pattern === state.pattern;
   if (!same) {
     if (state.phase === "counting") {
@@ -134,10 +149,6 @@ export function transition(state, event, config, nowMs) {
     };
   }
 
-  if (state.phase === "grace" && nowMs - state.phaseStartedAt >= graceMs) {
-    const startedAt = state.phaseStartedAt + graceMs;
-    state = { ...state, phase: "counting", phaseStartedAt: startedAt, lastTickAt: startedAt };
-  }
   return { state, credits };
 }
 

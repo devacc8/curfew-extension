@@ -7,6 +7,7 @@ import {
   passesUsedToday,
   passesLeftToday,
   transition,
+  promoteGrace,
   recoveryCredit,
   capCredits,
   dropIfMidnightCrossed,
@@ -131,20 +132,23 @@ test("transition: tick during grace keeps grace and credits nothing", () => {
   assert.deepEqual(credits, []);
 });
 
-test("transition: tick after grace promotes and backfills lastTickAt to grace end", () => {
+test("transition: tick after grace promotes and credits the post-grace window", () => {
   const start = transition(null, env("*.x.com", true), CFG, 0).state;
   const { state, credits } = transition(start, { type: "tick" }, CFG, 11 * S);
   assert.equal(state.phase, "counting");
   assert.equal(state.phaseStartedAt, 10 * S);
-  assert.equal(state.lastTickAt, 10 * S);
-  assert.deepEqual(credits, []);
+  assert.equal(state.lastTickAt, 11 * S);
+  assert.deepEqual(credits, [{ pattern: "*.x.com", ms: 1 * S }]);
 });
 
 test("transition: tick while counting credits the uncredited window", () => {
-  let { state } = transition(null, env("*.x.com", true), CFG, 0);
-  ({ state } = transition(state, { type: "tick" }, CFG, 11 * S));
-  const { state: next, credits } = transition(state, { type: "tick" }, CFG, 20 * S);
-  assert.deepEqual(credits, [{ pattern: "*.x.com", ms: 10 * S }]);
+  const start = transition(null, env("*.x.com", true), CFG, 0).state;
+  // The promoting tick credits the 1 s sliver after grace; the next tick
+  // credits the remaining 9 s — 10 s total, nothing lost and nothing doubled.
+  const promoted = transition(start, { type: "tick" }, CFG, 11 * S);
+  assert.deepEqual(promoted.credits, [{ pattern: "*.x.com", ms: 1 * S }]);
+  const { state: next, credits } = transition(promoted.state, { type: "tick" }, CFG, 20 * S);
+  assert.deepEqual(credits, [{ pattern: "*.x.com", ms: 9 * S }]);
   assert.equal(next.lastTickAt, 20 * S);
 });
 
@@ -172,10 +176,10 @@ test("transition: pattern switch credits the old window and starts fresh grace",
 });
 
 test("transition: blur during counting flushes and pauses", () => {
-  let { state } = transition(null, env("*.x.com", true), CFG, 0);
-  ({ state } = transition(state, { type: "tick" }, CFG, 11 * S));
-  const { state: next, credits } = transition(state, env("*.x.com", false), CFG, 15 * S);
-  assert.deepEqual(credits, [{ pattern: "*.x.com", ms: 5 * S }]);
+  const start = transition(null, env("*.x.com", true), CFG, 0).state;
+  const promoted = transition(start, { type: "tick" }, CFG, 11 * S);
+  const { state: next, credits } = transition(promoted.state, env("*.x.com", false), CFG, 15 * S);
+  assert.deepEqual(credits, [{ pattern: "*.x.com", ms: 4 * S }]);
   assert.equal(next, null);
 });
 
@@ -384,4 +388,49 @@ test("effectiveBudgetSeconds: zero-budget item with a pass gets pass-only allowa
   };
   const item = { budgetMinutes: 0, pattern: "github.com" };
   assert.equal(effectiveBudgetSeconds(item, state, "2026-09-02", 15), 15 * 60);
+});
+
+test("promoteGrace: keeps grace until the window elapses, then backfills", () => {
+  const session = { pattern: "*.x.com", phase: "grace", phaseStartedAt: 0, lastTickAt: 0 };
+  assert.deepEqual(promoteGrace(session, CFG, 5 * S), session);
+  assert.deepEqual(promoteGrace(session, CFG, 10 * S), {
+    pattern: "*.x.com",
+    phase: "counting",
+    phaseStartedAt: 10 * S,
+    lastTickAt: 10 * S,
+  });
+  assert.equal(promoteGrace(null, CFG, 10 * S), null);
+  assert.equal(promoteGrace({ ...session, phase: "counting" }, CFG, 10 * S).phase, "counting");
+});
+
+test("transition: a visit that outlives grace credits on departure", () => {
+  // The bug: the promotion check only ran on same-pattern events, so a visit
+  // that ended (blur / tab switch) before any tick was discarded whole.
+  const { state: start } = transition(null, env("*.x.com", true), CFG, 0);
+  const { state, credits } = transition(start, env(null, false), CFG, 40 * S);
+  assert.equal(state, null);
+  assert.deepEqual(credits, [{ pattern: "*.x.com", ms: 30 * S }]);
+});
+
+test("transition: a departure inside grace still credits nothing", () => {
+  const { state: start } = transition(null, env("*.x.com", true), CFG, 0);
+  const { state, credits } = transition(start, env(null, false), CFG, 5 * S);
+  assert.equal(state, null);
+  assert.deepEqual(credits, []);
+});
+
+test("transition: a short visit credits exactly its post-grace share", () => {
+  const { state: start } = transition(null, env("*.x.com", true), CFG, 0);
+  const { credits } = transition(start, env("*.y.com", true), CFG, 70 * S);
+  assert.deepEqual(credits, [{ pattern: "*.x.com", ms: 60 * S }]);
+});
+
+test("transition: grace never double-credits when promoted then flushed", () => {
+  // Promote via departure, then let a tick arrive: the promoted session is
+  // gone, so the tick cannot credit the same window twice.
+  const { state } = transition(null, env("*.x.com", true), CFG, 0);
+  const departed = transition(state, env(null, false), CFG, 40 * S);
+  assert.equal(departed.credits.reduce((a, c) => a + c.ms, 0), 30 * S);
+  const ticked = transition(departed.state, { type: "tick" }, CFG, 45 * S);
+  assert.deepEqual(ticked.credits, []);
 });

@@ -3,6 +3,7 @@ import { dayKey, nextLocalMidnight } from "./common/time.js";
 import { parsePattern, matchesHost } from "./common/patterns.js";
 import {
   transition,
+  promoteGrace,
   recoveryCredit,
   applyCredit,
   recordUnblock,
@@ -161,6 +162,9 @@ async function onTrackerEvent() {
   await update((s) => {
     const lastDay = s.session ? dayKey(s.session.lastTickAt) : null;
     if (fromWake && s.session) {
+      // Promote first: a visit that outlived its grace window while the
+      // worker was dead must credit its post-grace part, not vanish whole.
+      s.session = promoteGrace(s.session, s.config, now);
       const credit = recoveryCredit(s.session, now, MAX_CREDIT_MS);
       if (credit && lastDay === dayKey(now)) {
         applyCredit(s, credit, dayKey(now));
