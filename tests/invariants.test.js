@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
-import { join, dirname } from "node:path";
+import { join, dirname, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -115,7 +115,9 @@ test("common/ purity: chrome.* only in storage.js", () => {
 
 test("the state document has exactly one writer: the service worker", () => {
   const storagePath = join(ROOT, "src", "common", "storage.js");
-  const swPath = join(ROOT, "src", "service-worker.js");
+  // The worker and its private modules own the document; pages never do.
+  const isWorker = (file) =>
+    file.endsWith("service-worker.js") || file.includes(join("src", "sw") + sep);
   for (const file of jsFiles) {
     const text = readFileSync(file, "utf8");
     if (file !== storagePath) {
@@ -125,7 +127,7 @@ test("the state document has exactly one writer: the service worker", () => {
         `${file} writes chrome.storage.local directly`
       );
     }
-    if (file === storagePath || file === swPath) continue;
+    if (file === storagePath || isWorker(file)) continue;
     // Pages must go through mutate(); importing update() would let a page
     // read-modify-write over a concurrent credit (no storage transactions).
     for (const match of text.matchAll(/import\s*\{([^}]*)\}\s*from\s*["'][^"']*storage\.js["']/g)) {

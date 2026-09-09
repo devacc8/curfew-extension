@@ -1,36 +1,32 @@
 import { load, update, upsertItem } from "./common/storage.js";
-import { dayKey, nextLocalMidnight } from "./common/time.js";
-import { parsePattern, matchesHost } from "./common/patterns.js";
-import { recordUnblock, nextExhaustionAt } from "./common/budget.js";
+import { nextLocalMidnight } from "./common/time.js";
+import { KEEP_DAYS, MAX_CREDIT_MS, TICK_MINUTES, IDLE_SECONDS } from "./common/limits.js";
+import { pruneRuntime, trackTick, applyRollover } from "./common/tracking.js";
 import {
-  trackEnvironment,
-  trackTick,
-  pruneRuntime,
-  applyRollover,
-} from "./common/tracking.js";
-import { desiredRules, diffRules, isOpen, resolvePassRequest } from "./common/rules.js";
-import { applyOp } from "./common/ops.js";
-import { IDLE_SECONDS, KEEP_DAYS, MAX_CREDIT_MS, TICK_MINUTES } from "./common/limits.js";
+  COOLDOWN_PREFIX,
+  EXHAUST,
+  UNBLOCK_PREFIX,
+  createReconciler,
+} from "./sw/reconciler.js";
+import { createTracker } from "./sw/tracker.js";
+import { createMessageHandler } from "./sw/messaging.js";
 
 const TICK = "tick";
 const MIDNIGHT = "midnight";
-const EXHAUST = "exhaust";
-const UNBLOCK_PREFIX = "unblock:";
-const COOLDOWN_PREFIX = "cooldown:";
 const MENU_ID = "curfew-add-site";
 
-const BLOCKED_PAGE = "/src/blocked.html";
-
-let warm = false;
-let queryState = "unknown";
+/**
+ * Composition root: this file only wires browser events to the modules that
+ * own the behaviour (reconciler = desired browser state, tracker = accounting,
+ * messaging = page writes). Top-level listener registration is the MV3 rule.
+ */
 
 /**
- * Every state mutation runs through this one promise chain. chrome.storage
- * has no transactions, so two overlapping read-modify-write cycles (a tick
- * alarm racing an environment event) would otherwise each read the same
- * snapshot and the later write would silently drop the other's credit —
- * exactly the "time stops counting" failure. Entry points are serialized;
- * nested calls (onAlarm -> flushTick) stay plain to avoid deadlock.
+ * Every state mutation runs through this one promise chain. chrome.storage has
+ * no transactions, so two overlapping read-modify-write cycles (a tick alarm
+ * racing an environment event) would otherwise each read the same snapshot and
+ * the later write would silently drop the other's credit. Entry points are
+ * serialized; nested calls (onAlarm -> flushTick) stay plain to avoid deadlock.
  */
 let mutationQueue = Promise.resolve();
 function serial(task) {
@@ -40,6 +36,22 @@ function serial(task) {
     () => {}
   );
   return next;
+}
+
+const reconciler = createReconciler();
+const tracker = createTracker({
+  reconcile: reconciler.reconcile,
+  bounceClosedTabs: reconciler.bounceClosedTabs,
+  rollover: (state) => rollover(state),
+});
+const onMessage = createMessageHandler({
+  flushTick,
+  reconcile: reconciler.reconcile,
+  bounceClosedTabs: reconciler.bounceClosedTabs,
+});
+
+function runTracker() {
+  serial(tracker.onTrackerEvent).catch((error) => console.error("curfew: tracker failed", error));
 }
 
 chrome.runtime.onInstalled.addListener(() =>
@@ -56,10 +68,11 @@ chrome.tabs.onUpdated.addListener(onTabUpdated);
 chrome.windows.onFocusChanged.addListener(runTracker);
 chrome.idle.onStateChanged.addListener(runTracker);
 chrome.runtime.onMessage.addListener(onMessage);
-
-function runTracker() {
-  serial(onTrackerEvent).catch((error) => console.error("curfew: tracker failed", error));
-}
+chrome.contextMenus.onClicked.addListener((info, tab) =>
+  serial(() => onContextMenu(info, tab)).catch((e) =>
+    console.error("curfew: menu handler failed", e)
+  )
+);
 
 /**
  * Reconcile the moment the worker starts. Dynamic rules survive a browser
@@ -69,15 +82,10 @@ function runTracker() {
  */
 async function bootReconcile() {
   const state = await rollover(await load());
-  await reconcile(state);
-  await bounceClosedTabs(state);
+  await reconciler.reconcile(state);
+  await reconciler.bounceClosedTabs(state);
 }
 serial(bootReconcile).catch((error) => console.error("curfew: boot reconcile failed", error));
-chrome.contextMenus.onClicked.addListener((info, tab) =>
-  serial(() => onContextMenu(info, tab)).catch((e) =>
-    console.error("curfew: menu handler failed", e)
-  )
-);
 
 function ensureContextMenu() {
   chrome.contextMenus.removeAll(() => {
@@ -95,7 +103,7 @@ async function init() {
   chrome.alarms.create(TICK, { periodInMinutes: TICK_MINUTES });
   scheduleMidnight();
   ensureContextMenu();
-  await reconcile(await rollover(state));
+  await reconciler.reconcile(await rollover(state));
 }
 
 async function onStartup() {
@@ -103,7 +111,7 @@ async function onStartup() {
     s.session = null;
   });
   ensureContextMenu();
-  await reconcile(await rollover(state));
+  await reconciler.reconcile(await rollover(state));
 }
 
 /**
@@ -130,15 +138,12 @@ async function onContextMenu(info, tab) {
       return;
     }
     let state = await load();
-    const exists = state.config.items.some((i) => {
-      const p = parsePattern(i.pattern);
-      return p.ok && matchesHost(p.pattern, host);
-    });
+    const exists = state.config.items.some((i) => i.pattern === host);
     if (!exists) {
       state = await update((s) => {
         upsertItem(s, { pattern: host, budgetMinutes: 30, access: "denied" });
       }, state);
-      await reconcile(state);
+      await reconciler.reconcile(state);
       console.log("curfew: item added", host);
     }
     const url = `${chrome.runtime.getURL("src/options.html")}?add=${encodeURIComponent(host)}`;
@@ -155,175 +160,7 @@ function scheduleMidnight() {
 
 function onTabUpdated(_tabId, changeInfo) {
   if (changeInfo.url || changeInfo.status === "loading") {
-    onTrackerEvent().catch((error) => console.error("curfew: tracker failed", error));
-  }
-}
-
-async function onTrackerEvent() {
-  const now = Date.now();
-  const fromWake = !warm;
-  warm = true;
-
-  // 1) async environment probe first (tabs/windows/idle APIs)
-  const probe = await probeEnv();
-
-  // 2) then load -> update with NO awaits in between: the read-modify-write
-  //    is atomic within JS, so concurrent writes (wall unblock, blockNow)
-  //    can never be clobbered by a stale preloaded state
-  await update((s) => {
-    const pattern = probe.host ? patternForHost(s, probe.host) : null;
-    trackEnvironment(
-      s,
-      { type: "environment", pattern, canCount: probe.canCount },
-      now,
-      { fromWake, maxCreditMs: MAX_CREDIT_MS }
-    );
-  });
-
-  const state = await load();
-  await rollover(state);
-  await reconcile(state);
-  await bounceClosedTabs(state);
-}
-
-async function probeEnv() {
-  try {
-    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-    if (!tab) return { host: null, canCount: false };
-    let host = null;
-    try {
-      host = tab.url ? new URL(tab.url).hostname : null;
-    } catch {
-      host = null;
-    }
-    const win = await chrome.windows.get(tab.windowId);
-    const idleState = await chrome.idle.queryState(IDLE_SECONDS);
-    return { host, canCount: Boolean(win?.focused) && idleState === "active" };
-  } catch {
-    return { host: null, canCount: false };
-  }
-}
-
-function patternForHost(state, host) {
-  for (const item of state.config.items) {
-    if (!item.enabled || item.access !== "granted") continue;
-    const parsed = parsePattern(item.pattern);
-    if (parsed.ok && matchesHost(parsed.pattern, host)) return item.pattern;
-  }
-  return null;
-}
-
-function blockedPageFor(host) {
-  if (queryState === "no") return BLOCKED_PAGE;
-  return `${BLOCKED_PAGE}?domain=${encodeURIComponent(host)}`;
-}
-
-/** Tell extension pages the rule set changed: a wall can leave the instant
- *  its rule is gone instead of polling for it. */
-function announceRulesChanged() {
-  chrome.runtime.sendMessage({ type: "rules:changed" }).catch(() => {
-    // No listener (no wall open) — the normal case.
-  });
-}
-
-/**
- * Project the projected budget-exhaustion moment into a one-shot alarm, so
- * the wall lands when the allowance is actually spent instead of on the next
- * 5-minute tick. Recomputed on every reconcile, so it follows pauses, burned
- * passes and budget edits; cleared whenever nothing is accruing.
- */
-function scheduleExhaust(state, now) {
-  const at = nextExhaustionAt(state, dayKey(now), now);
-  if (at === null) {
-    chrome.alarms.clear(EXHAUST);
-    return;
-  }
-  // One-shot alarms fire with second-level jitter; never schedule the past.
-  chrome.alarms.create(EXHAUST, { when: Math.max(now + 1000, at) });
-}
-
-/** Arm one-shot alarms that re-open sites whose anti-infinite-scroll
- *  cooldown ends. Idempotent: creating an existing name replaces it. */
-function scheduleCooldowns(state, now) {
-  for (const item of state.config.items) {
-    const until = state.runtime.cooldownUntil?.[item.pattern];
-    if (!Number.isFinite(until) || until <= now) continue;
-    chrome.alarms.create(COOLDOWN_PREFIX + item.ruleId, { when: until });
-  }
-}
-
-async function reconcile(state) {
-  const now = Date.now();
-  scheduleExhaust(state, now);
-  scheduleCooldowns(state, now);
-  const desired = desiredRules(state, {
-    day: dayKey(now),
-    nowMs: now,
-    blockedPageFor,
-  });
-  const actual = await chrome.declarativeNetRequest.getDynamicRules();
-  const { removeRuleIds, addRules } = diffRules(desired, actual);
-  if (!removeRuleIds.length && !addRules.length) return;
-  try {
-    await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds, addRules });
-    if (addRules.length) queryState = "yes";
-    announceRulesChanged();
-  } catch (error) {
-    // A single bad id or rule must never leave the user trapped behind a rule
-    // that should be gone: retry removals one at a time and say exactly which
-    // one failed. (Field report: a stale rule survived every reconcile because
-    // the batch call threw and the failure was swallowed.)
-    console.error("curfew: reconcile batch failed", error);
-    for (const id of removeRuleIds) {
-      try {
-        await chrome.declarativeNetRequest.updateDynamicRules({
-          removeRuleIds: [id],
-          addRules: [],
-        });
-      } catch (single) {
-        console.error("curfew: could not remove rule", id, single);
-      }
-    }
-    if (addRules.length) {
-      if (queryState === "unknown") {
-        queryState = "no";
-        return reconcile(state);
-      }
-      console.error("curfew: could not install rules", addRules.map((r) => r.id));
-    }
-    announceRulesChanged();
-  }
-}
-
-async function bounceClosedTabs(state) {
-  const now = Date.now();
-  const day = dayKey(now);
-  let tabs;
-  try {
-    tabs = await chrome.tabs.query({ active: true });
-  } catch {
-    return;
-  }
-  for (const tab of tabs) {
-    if (!tab?.id || !tab.url) continue;
-    let host = null;
-    try {
-      host = new URL(tab.url).hostname;
-    } catch {
-      continue;
-    }
-    if (!host) continue;
-    const item = state.config.items.find((i) => {
-      if (!i.enabled || i.access !== "granted") return false;
-      const p = parsePattern(i.pattern);
-      return p.ok && matchesHost(p.pattern, host);
-    });
-    if (!item || isOpen(state, item, day, now)) continue;
-    try {
-      await chrome.tabs.update(tab.id, { url: blockedPageFor(host) });
-    } catch (error) {
-      console.warn("curfew: could not redirect tab", tab.id, error);
-    }
+    runTracker();
   }
 }
 
@@ -358,89 +195,7 @@ async function onAlarm(alarm) {
   if (!known) return;
   if (flushes) await flushTick();
   const state = await rollover(await load());
-  await reconcile(state);
-  await bounceClosedTabs(state);
+  await reconciler.reconcile(state);
+  await reconciler.bounceClosedTabs(state);
   if (alarm.name === MIDNIGHT) scheduleMidnight();
-}
-
-function onMessage(message, _sender, sendResponse) {
-  serial(async () => {
-    try {
-      if (message?.type === "unblock:request") {
-        const loaded = await load();
-        const item = loaded.config.items.find((i) => i.id === message.itemId);
-        if (!item || item.access !== "granted") return sendResponse({ ok: false });
-        const day = dayKey(Date.now());
-        const decision = resolvePassRequest(
-          loaded,
-          item,
-          day,
-          Date.now(),
-          loaded.config.unblockPassesPerDay
-        );
-        if (!decision.ok) return sendResponse({ ok: false, reason: decision.reason });
-        // A stale wall asking to "stay" on an already-open site is a no-op:
-        // no pass is burned, the live window (if any) is echoed back.
-        if (!decision.burn) return sendResponse({ ok: true, until: decision.until });
-        const until = Date.now() + loaded.config.unblockMinutes * 60_000;
-        const state = await update((s) => {
-          s.runtime.unblockUntil[item.pattern] = until;
-          recordUnblock(s, item.pattern, day);
-        }, loaded);
-        chrome.alarms.create(UNBLOCK_PREFIX + item.ruleId, { when: until });
-        await reconcile(state);
-        sendResponse({ ok: true, until });
-      } else if (message?.type === "blockNow") {
-        const loaded = await load();
-        const item = loaded.config.items.find((i) => i.id === message.itemId);
-        if (!item) return sendResponse({ ok: false });
-        const state = await update((s) => {
-          s.runtime.dayOverrides[item.pattern] = {
-            day: dayKey(Date.now()),
-            action: "block",
-          };
-        }, loaded);
-        await reconcile(state);
-        await bounceClosedTabs(state);
-        sendResponse({ ok: true });
-      } else if (message?.type === "flush") {
-        const state = await flushTick();
-        await reconcile(state);
-        await bounceClosedTabs(state);
-        sendResponse({ ok: true });
-      } else if (message?.type === "unstick") {
-        // Escape hatch for a wall whose rule survived a failed batch
-        // reconcile: remove exactly this item's rule, then re-reconcile.
-        const loaded = await load();
-        const item = loaded.config.items.find((i) => i.id === message.itemId);
-        if (!item) return sendResponse({ ok: false });
-        try {
-          await chrome.declarativeNetRequest.updateDynamicRules({
-            removeRuleIds: [item.ruleId],
-            addRules: [],
-          });
-          sendResponse({ ok: true });
-        } catch (error) {
-          console.error("curfew: unstick failed for rule", item.ruleId, error);
-          sendResponse({ ok: false });
-        }
-        await reconcile(await load());
-      } else if (message?.type === "state:apply") {
-        // The ONLY write path for pages: applied here, inside the serialized
-        // queue, so a page write cannot clobber a concurrent credit.
-        let result;
-        const state = await update((s) => {
-          result = applyOp(s, message.op, message.payload);
-        });
-        await reconcile(state);
-        await bounceClosedTabs(state);
-        sendResponse({ ok: true, result });
-      } else {
-        sendResponse({ ok: false });
-      }
-    } catch {
-      sendResponse({ ok: false });
-    }
-  }).catch((e) => console.error("curfew: message handler failed", e));
-  return true;
 }

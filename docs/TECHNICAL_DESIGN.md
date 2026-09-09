@@ -102,6 +102,12 @@ curfew-extension/
       puzzle.js               # 15-puzzle: solvable shuffle, moves (pure)
       equation.js             # bracketed equation generator + evaluator (pure)
       storage.js              # the ONLY module that touches chrome.storage
+  src/service-worker.js       # composition root: listeners + boot only
+  src/sw/                     # worker-private modules (may write the document)
+    reconciler.js             # DNR rules + alarms projection
+    tracker.js                # the tracking loop (probe -> tracking.js)
+    messaging.js              # every page message, applied in the serial queue
+    probe.js                  # active tab / focus / idle facts
   src/protect.js              # shared challenge dialogs + guarded() for pages
   src/ui/                     # page-side helpers (chrome.i18n, permissions)
     i18n.js                   # msg() + applyI18n()
