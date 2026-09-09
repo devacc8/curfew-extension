@@ -1,4 +1,5 @@
 :root {
+  color-scheme: dark light;
   --bg: #14161a;
   --fg: #e8eaed;
   --muted: #9aa0a6;
@@ -6,6 +7,9 @@
   --accent: #7da2ff;
   --danger: #e07a7a;
   --ok: #7fce95;
+  --warn: #e0b060;
+  --input-bg: #1c1f24;
+  --page-bg: linear-gradient(160deg, #1d2f55 0%, #14161a 45%, #0a0f1c 100%) fixed;
 }
 
 * { box-sizing: border-box; }
@@ -14,7 +18,7 @@ body {
   max-width: 640px;
   margin: 0 auto;
   padding: 24px 16px;
-  background: linear-gradient(160deg, #1d2f55 0%, #14161a 45%, #0a0f1c 100%) fixed;
+  background: var(--page-bg);
   color: var(--fg);
   font: 14px/1.5 system-ui, sans-serif;
 }
@@ -44,7 +48,7 @@ h2 {
 }
 
 input {
-  background: #1c1f24;
+  background: var(--input-bg);
   color: var(--fg);
   border: 1px solid var(--line);
   border-radius: 6px;
@@ -69,7 +73,7 @@ input#minutes { width: 110px; }
 
 button {
   background: var(--accent);
-  color: #10131a;
+  color: var(--on-accent, #10131a);
   border: 0;
   border-radius: 6px;
   padding: 8px 14px;
@@ -292,7 +296,7 @@ button.ghost-danger {
   margin-top: 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #181b20;
+  background: var(--input-bg);
   padding: 10px 14px;
 }
 
@@ -325,7 +329,7 @@ button.ghost-danger {
 .slider {
   position: absolute;
   inset: 0;
-  background: #3a3f47;
+  background: var(--slider-bg, #3a3f47);
   border-radius: 10px;
   transition: background 0.15s;
 }
@@ -344,3 +348,21 @@ button.ghost-danger {
 
 .switch input:checked + .slider { background: var(--accent); }
 .switch input:checked + .slider::before { transform: translateX(15px); }
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f5f6f8;
+    --fg: #1b1e24;
+    --muted: #5f6672;
+    --line: #d9dde3;
+    --accent: #2f6bff;
+    --danger: #c0392b;
+    --ok: #1f8a4c;
+    --warn: #a86400;
+    --input-bg: #ffffff;
+    --bar-bg: #e3e6eb;
+    --slider-bg: #c7ccd4;
+    --on-accent: #ffffff;
+    --page-bg: linear-gradient(160deg, #e6edfd 0%, #f5f6f8 45%, #ffffff 100%) fixed;
+  }
+}

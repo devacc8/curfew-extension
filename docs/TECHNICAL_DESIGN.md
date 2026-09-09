@@ -93,6 +93,7 @@ curfew-extension/
       patterns.js             # pattern grammar: parse/match/mappings (pure)
       budget.js               # decide, state machine, usage rows, passes (pure)
       tracking.js             # the accounting entry points, clock-injected (pure)
+      view.js                 # popup presentation math: live countdown (pure)
       ops.js                  # the mutation vocabulary the SW applies (pure)
       rules.js                # desired DNR rule set (pure projection)
       transfer.js             # export/import envelope, day pruning (pure)

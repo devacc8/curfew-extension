@@ -14,6 +14,7 @@ const ALLOWED_PERMISSIONS = [
   "alarms",
   "declarativeNetRequestWithHostAccess",
   "contextMenus",
+  "activeTab",
 ];
 
 function walk(dir) {

@@ -16,7 +16,8 @@
     "idle",
     "alarms",
     "declarativeNetRequestWithHostAccess",
-    "contextMenus"
+    "contextMenus",
+    "activeTab"
   ],
   "optional_host_permissions": ["*://*/*"],
   "incognito": "not_allowed",

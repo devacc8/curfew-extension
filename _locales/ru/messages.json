@@ -208,5 +208,20 @@
   },
   "cooldownLabel": {
     "message": "Перерыв"
+  },
+  "returnsInLabel": {
+    "message": "Вернётся через"
+  },
+  "hoursShort": {
+    "message": " ч "
+  },
+  "secondsShort": {
+    "message": " с"
+  },
+  "addCurrentSite": {
+    "message": "Добавить текущий сайт"
+  },
+  "noCurrentSite": {
+    "message": "На этой вкладке нет сайта"
   }
 }

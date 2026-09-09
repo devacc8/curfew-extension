@@ -1,5 +1,5 @@
 import { load } from "./common/storage.js";
-import { dayKey } from "./common/time.js";
+import { dayKey, nextLocalMidnight } from "./common/time.js";
 import { parsePattern, matchesHost } from "./common/patterns.js";
 import { secondsUsedToday, passesLeftToday } from "./common/budget.js";
 import { isOpen } from "./common/rules.js";
@@ -32,6 +32,7 @@ if (!domain) {
   setInterval(() => {
     if (document.visibilityState === "visible") refresh();
   }, 60_000);
+  setInterval(paintCountdown, 1000);
 }
 
 async function init() {
@@ -104,10 +105,37 @@ async function refresh() {
     const limit = state.config.unblockPassesPerDay;
     const left = passesLeftToday(state, day, limit);
     stayEl.disabled = left <= 0;
-    if (left <= 0) {
-      hintEl.textContent = msg("limitReached");
-    }
+    paintCountdown();
   }
+}
+
+/** "4h 12m" / "3m 20s" / "48s" — a countdown must never read "0 min". */
+function formatWait(ms) {
+  const total = Math.max(0, Math.ceil(ms / 1000));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  if (h > 0) return `${h}${msg("hoursShort")}${m}${msg("minutesShort")}`;
+  if (m > 0) return `${m}${msg("minutesShort")} ${s}${msg("secondsShort")}`;
+  return `${s}${msg("secondsShort")}`;
+}
+
+/** Repaint the "returns in" line once a second: a cooldown deadline if one is
+ *  live, otherwise the next local midnight. */
+function paintCountdown() {
+  if (!item || !state || document.visibilityState !== "visible") return;
+  const now = Date.now();
+  const day = dayKey(now);
+  if (isOpen(state, item, day, now)) return;
+  const cooldownUntil = state.runtime.cooldownUntil?.[item.pattern];
+  const until =
+    Number.isFinite(cooldownUntil) && cooldownUntil > now
+      ? cooldownUntil
+      : nextLocalMidnight(new Date(now)).getTime();
+  const leftPasses = passesLeftToday(state, day, state.config.unblockPassesPerDay);
+  hintEl.textContent =
+    `${msg("returnsInLabel")} ${formatWait(until - now)}` +
+    (leftPasses <= 0 ? ` · ${msg("limitReached")}` : "");
 }
 
 function renderUsage() {

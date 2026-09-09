@@ -208,5 +208,20 @@
   },
   "cooldownLabel": {
     "message": "Break"
+  },
+  "returnsInLabel": {
+    "message": "Returns in"
+  },
+  "hoursShort": {
+    "message": "h"
+  },
+  "secondsShort": {
+    "message": "s"
+  },
+  "addCurrentSite": {
+    "message": "Add the current site"
+  },
+  "noCurrentSite": {
+    "message": "This tab has no site to add"
   }
 }

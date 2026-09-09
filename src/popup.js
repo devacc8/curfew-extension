@@ -1,7 +1,7 @@
 import { load, mutate, onChanged } from "./common/storage.js";
 import { parsePattern, patternToString, toMatchOrigins } from "./common/patterns.js";
-import { secondsUsedToday, dailyTotals, effectiveBudgetSeconds } from "./common/budget.js";
-import { isOpen } from "./common/rules.js";
+import { dailyTotals } from "./common/budget.js";
+import { formatDuration, remainingText, rowViewModel } from "./common/view.js";
 import { dayKey, previousDayKey } from "./common/time.js";
 import { guarded } from "./protect.js";
 
@@ -16,6 +16,7 @@ const els = {
   add: document.getElementById("add"),
   status: document.getElementById("status"),
   openOptions: document.getElementById("openOptions"),
+  addCurrent: document.getElementById("addCurrent"),
 };
 
 const msg = (key) => chrome.i18n.getMessage(key);
@@ -41,27 +42,12 @@ function rejectPattern() {
   setStatus("invalidPattern");
 }
 
-function formatDuration(sec) {
-  const m = Math.round(sec / 60);
-  if (m < 60) return `${m} ${msg("minutesShort")}`;
-  return `${Math.floor(m / 60)}h ${m % 60}${msg("minutesShort")}`;
-}
-
-/** Remaining time rounds UP: "1 min left" must mean the wall is not due yet,
- *  never "somewhere between 30 and 89 seconds left" (Math.round showed 1 min
- *  with less than a minute on the clock, which read as a frozen counter). */
-function formatRemaining(sec) {
-  const m = Math.ceil(sec / 60);
-  if (m < 60) return `${m} ${msg("minutesShort")}`;
-  return `${Math.floor(m / 60)}h ${m % 60}${msg("minutesShort")}`;
-}
-
 function renderTotals(state) {
   const today = dailyTotals(state, dayKey());
   const yesterday = dailyTotals(state, previousDayKey());
   els.totalsLine.textContent =
-    `${msg("todayLabel")} ${formatDuration(today.totalSeconds)} · ` +
-    `${msg("yesterdayLabel")} ${formatDuration(yesterday.totalSeconds)}`;
+    `${msg("todayLabel")} ${formatDuration(today.totalSeconds, msg)} · ` +
+    `${msg("yesterdayLabel")} ${formatDuration(yesterday.totalSeconds, msg)}`;
 }
 
 function renderTopSites(state) {
@@ -75,7 +61,7 @@ function renderTopSites(state) {
     name.textContent = site;
     const time = document.createElement("span");
     time.className = "time";
-    time.textContent = formatDuration(seconds);
+    time.textContent = formatDuration(seconds, msg);
     li.append(name, time);
     els.topSites.append(li);
   }
@@ -185,35 +171,20 @@ function buildRow(item, state) {
   name.textContent = item.pattern;
 
   const now = Date.now();
-  const open = isOpen(state, item, dayKey(now), now);
-  const coolingUntil = state.runtime.cooldownUntil?.[item.pattern];
-  const cooling = Number.isFinite(coolingUntil) && coolingUntil > now;
-  const used = secondsUsedToday(state, item.pattern);
-  // The effective budget is what enforcement uses (base + 15 min per burned
-  // pass), so the bar and the remaining label must show the same number.
-  const effective = effectiveBudgetSeconds(
-    item,
-    state,
-    dayKey(now),
-    state.config.unblockMinutes
-  );
-  const left = Math.max(0, effective - used);
+  const vm = rowViewModel(state, item, now);
   const remaining = document.createElement("span");
-  remaining.className = "remaining" + (open ? "" : cooling ? " cooling" : " closed");
-  remaining.textContent = open
-    ? `${formatRemaining(left)} ${msg("leftSuffix")}`
-    : cooling
-      ? `${msg("cooldownLabel")} ${formatRemaining(Math.ceil((coolingUntil - now) / 1000))}`
-      : msg("closedLabel");
+  remaining.className = "remaining" + (vm.open ? "" : vm.cooling ? " cooling" : " closed");
+  remaining.textContent = remainingText(vm, now, msg);
 
   line1.append(enabled, name, remaining);
 
   const bar = document.createElement("div");
-  bar.className = "bar" + (open ? "" : " done");
+  bar.className = "bar" + (vm.open ? "" : " done");
   const fill = document.createElement("i");
-  const ratio = effective > 0 ? Math.min(1, used / effective) : 1;
+  const ratio = vm.effective > 0 ? Math.min(1, vm.used / vm.effective) : 1;
   fill.style.width = `${Math.round(ratio * 100)}%`;
   bar.append(fill);
+  liveRows.push({ item, remaining, bar: fill });
 
   const line2 = document.createElement("div");
   line2.className = "line actions";
@@ -278,6 +249,8 @@ async function render() {
   ]);
   if (snapshot === lastPainted) return;
   lastPainted = snapshot;
+  liveState = state;
+  liveRows = [];
   els.master.checked = state.config.masterEnabled;
   renderTotals(state);
   renderTopSites(state);
@@ -312,12 +285,61 @@ els.add.addEventListener("click", () => {
   addSite(els.pattern.value, Number(els.minutes.value));
 });
 
+/** The host of the tab this popup was opened on. `activeTab` is granted by
+ *  the action click, so this needs no host permission and no install warning. */
+async function currentHost() {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const url = new URL(tab?.url ?? "");
+    if (url.protocol !== "https:" && url.protocol !== "http:") return null;
+    return url.hostname;
+  } catch {
+    return null;
+  }
+}
+
+els.addCurrent.addEventListener("click", async () => {
+  const host = await currentHost();
+  if (!host) {
+    setStatus("noCurrentSite");
+    return;
+  }
+  els.pattern.value = host;
+  els.minutes.focus();
+  setStatus("pressAddToGrant");
+});
+
 els.openOptions.addEventListener("click", () => {
   chrome.runtime.openOptionsPage();
 });
 
 let lastPainted = "";
 let paintTimer = null;
+let liveState = null;
+let liveRows = [];
+let flushPending = false;
+
+/** Repaint every row once a second; flush the moment a budget is spent so the
+ *  wall lands while the user is looking at the counter. */
+function paintLive() {
+  if (!liveState) return;
+  const now = Date.now();
+  let spent = false;
+  for (const row of liveRows) {
+    const vm = rowViewModel(liveState, row.item, now);
+    row.remaining.textContent = remainingText(vm, now, msg);
+    row.remaining.className = "remaining" + (vm.open ? "" : vm.cooling ? " cooling" : " closed");
+    const ratio = vm.effective > 0 ? Math.min(1, vm.used / vm.effective) : 1;
+    row.bar.style.width = `${Math.round(ratio * 100)}%`;
+    if (vm.open && vm.used >= vm.effective) spent = true;
+  }
+  if (spent && !flushPending) {
+    flushPending = true;
+    send("flush").finally(() => {
+      flushPending = false;
+    });
+  }
+}
 
 function scheduleRender() {
   if (paintTimer) return;
@@ -339,3 +361,4 @@ send("flush")
   .then(() => syncAccessFlags())
   .catch((error) => console.error("curfew: popup init failed", error))
   .finally(scheduleRender);
+setInterval(paintLive, 1000);
