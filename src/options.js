@@ -250,8 +250,15 @@ async function importData(file) {
     els.dataStatus.textContent = msg("importFailed");
     return;
   }
-  // The SW migrates and prunes the payload before it touches the document.
-  await mutate("state.import", { imported: result.state });
+  // Importing is a permissive change — it can rewrite every budget and even
+  // switch protection off — so it sits behind the same challenge as the
+  // other relaxations (README "Willpower Protection"). The file is only
+  // parsed before the gate; nothing is written until it is solved.
+  const done = await guarded(async () => {
+    // The SW migrates and prunes the payload before it touches the document.
+    await mutate("state.import", { imported: result.state });
+  });
+  if (!done) return;
   await reverifyAccess();
   els.dataStatus.textContent = msg("imported");
 }

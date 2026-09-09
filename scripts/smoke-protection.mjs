@@ -1,5 +1,7 @@
 import puppeteer from "puppeteer";
 import { join, dirname } from "node:path";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { findChrome } from "./chrome-path.mjs";
 import { fileURLToPath } from "node:url";
 
@@ -97,6 +99,87 @@ try {
   console.log(
     after?.protection?.kind === "equation" ? "PASS: protection enabled" : "FAIL: not enabled"
   );
+
+  // Importing is a permissive change: with protection ON the file picker must
+  // raise the challenge BEFORE the document is replaced. Cancel it and the
+  // payload must not have landed.
+  const importDir = mkdtempSync(join(tmpdir(), "curfew-import-"));
+  const importPath = join(importDir, "export.json");
+  writeFileSync(
+    importPath,
+    JSON.stringify({
+      kind: "curfew-export",
+      version: 1,
+      exportedAt: "2026-09-09T00:00:00Z",
+      state: {
+        schema: 1,
+        config: {
+          masterEnabled: true,
+          graceSeconds: 10,
+          unblockMinutes: 15,
+          unblockPassesPerDay: 3,
+          items: [
+            {
+              id: "evil",
+              ruleId: 5001,
+              pattern: "evil.test",
+              budgetMinutes: 1440,
+              enabled: true,
+              access: "denied",
+            },
+          ],
+        },
+        usage: { days: {} },
+        settings: { version: 1, itemSeq: 5001, protection: null },
+      },
+    })
+  );
+  const importInput = await page.$("#import");
+  await importInput.uploadFile(importPath);
+  await sleep(500);
+  const gate = await page.evaluate(async () => {
+    const dialog = document.querySelector("dialog");
+    const state = await new Promise((res) =>
+      chrome.storage.local.get("curfew", (d) => res(d.curfew))
+    );
+    return {
+      dialogOpen: dialog?.open ?? false,
+      imported: state?.config?.items?.some((i) => i.pattern === "evil.test") ?? false,
+    };
+  });
+  console.log("import gate:", JSON.stringify(gate));
+  if (!gate.dialogOpen || gate.imported) {
+    console.log("FAIL: import bypassed the challenge");
+    process.exitCode = 1;
+  } else {
+    console.log("PASS: import asks for the challenge");
+  }
+  const dialogButtons = await page.$$("dialog button");
+  for (const button of dialogButtons) {
+    const label = await button.evaluate((el) => el.textContent);
+    if (label === "Cancel") {
+      await button.click();
+      break;
+    }
+  }
+  await sleep(300);
+  const afterCancel = await page.evaluate(async () => {
+    const state = await new Promise((res) =>
+      chrome.storage.local.get("curfew", (d) => res(d.curfew))
+    );
+    return {
+      imported: state?.config?.items?.some((i) => i.pattern === "evil.test") ?? false,
+      protectionOn: Boolean(state?.settings?.protection),
+    };
+  });
+  console.log("import after cancel:", JSON.stringify(afterCancel));
+  if (afterCancel.imported || !afterCancel.protectionOn) {
+    console.log("FAIL: cancelling the challenge still changed the state");
+    process.exitCode = 1;
+  } else {
+    console.log("PASS: cancelling the import challenge changes nothing");
+  }
+  rmSync(importDir, { recursive: true, force: true });
 
   // disable flow: toggle -> solve -> protection null
   await page.click("#protectToggle");
