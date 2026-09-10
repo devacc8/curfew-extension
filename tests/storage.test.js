@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { STORAGE_KEY } from "../src/common/storage.js";
 
 function stubChromeStorage() {
   const data = new Map();
@@ -13,9 +14,18 @@ function stubChromeStorage() {
           },
         },
         local: {
-          async get(key) {
-            if (!data.has(key)) return {};
-            return { [key]: structuredClone(data.get(key)) };
+          async get(keys) {
+            // Mirrors the real API: a string, an array of keys, or everything.
+            const list = keys === null || keys === undefined
+              ? [...data.keys()]
+              : Array.isArray(keys)
+                ? keys
+                : [keys];
+            const out = {};
+            for (const key of list) {
+              if (data.has(key)) out[key] = structuredClone(data.get(key));
+            }
+            return out;
           },
           async set(obj) {
             const changes = {};
@@ -376,7 +386,7 @@ test("load keeps a backup of the document before migrating it", async () => {
 
   await load();
 
-  assert.equal(stub.data.get("curfew").schema, 2, "not migrated");
+  assert.equal(stub.data.get(STORAGE_KEY).schema, 2, "not migrated");
   const backup = stub.data.get("curfew:backup-v1");
   assert.ok(backup, "no backup was kept");
   assert.equal(backup.schema, 1);

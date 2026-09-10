@@ -258,7 +258,15 @@ export async function mutate(op, payload) // page-side write: sends state:apply 
 export function onChanged(handler)        // wraps chrome.storage.onChanged
 ```
 
-Invariants: single storage key `curfew`; every write is a whole-state write
+**Version-scoped key.** Documents live under `curfew:v<schema>`; the bare
+`curfew` key is read once (that is where every build up to schema 2 left its
+document) and never written again. A page left over from an older build keeps
+reading and writing `curfew` — its own idea of the document — and can no
+longer fight the current build for the same bytes. That is not hypothetical:
+a stale page from the pre-rename build rewrote the whole document on every
+render and reset a field install's sites, passes and protection.
+
+Invariants: every write is a whole-state write
 (values are small, §6.3); writes are skipped when nothing actually changed
 (prevents write spam and spurious `onChanged` events); migration function
 per schema version, pure and tested: `MIGRATIONS[1]` renames the v1 pass

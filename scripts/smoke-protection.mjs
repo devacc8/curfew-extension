@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { findChrome } from "./chrome-path.mjs";
+import { STORAGE_KEY } from "../src/common/storage.js";
 import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -45,10 +46,9 @@ try {
 
   // state before
   const before = await page.evaluate(
-    () =>
-      new Promise((res) =>
-        chrome.storage.local.get("curfew", (d) => res(d.curfew?.settings))
-      )
+    (key) =>
+      new Promise((res) => chrome.storage.local.get(key, (d) => res(d[key]?.settings))),
+    STORAGE_KEY
   );
   console.log("settings before:", JSON.stringify(before));
 
@@ -95,10 +95,9 @@ try {
   await sleep(300);
 
   const after = await page.evaluate(
-    () =>
-      new Promise((res) =>
-        chrome.storage.local.get("curfew", (d) => res(d.curfew?.settings))
-      )
+    (key) =>
+      new Promise((res) => chrome.storage.local.get(key, (d) => res(d[key]?.settings))),
+    STORAGE_KEY
   );
   console.log("settings after:", JSON.stringify(after));
   console.log(
@@ -143,9 +142,10 @@ try {
   await importInput.uploadFile(importPath);
   await sleep(500);
   const gate = await page.evaluate(async () => {
+    const { STORAGE_KEY } = await import(chrome.runtime.getURL("src/common/storage.js"));
     const dialog = document.querySelector("dialog");
     const state = await new Promise((res) =>
-      chrome.storage.local.get("curfew", (d) => res(d.curfew))
+      chrome.storage.local.get(STORAGE_KEY, (d) => res(d[STORAGE_KEY]))
     );
     return {
       dialogOpen: dialog?.open ?? false,
@@ -169,8 +169,9 @@ try {
   }
   await sleep(300);
   const afterCancel = await page.evaluate(async () => {
+    const { STORAGE_KEY } = await import(chrome.runtime.getURL("src/common/storage.js"));
     const state = await new Promise((res) =>
-      chrome.storage.local.get("curfew", (d) => res(d.curfew))
+      chrome.storage.local.get(STORAGE_KEY, (d) => res(d[STORAGE_KEY]))
     );
     return {
       imported: state?.config?.items?.some((i) => i.pattern === "evil.test") ?? false,
@@ -203,10 +204,9 @@ try {
   await page.keyboard.press("Enter");
   await sleep(300);
   const final = await page.evaluate(
-    () =>
-      new Promise((res) =>
-        chrome.storage.local.get("curfew", (d) => res(d.curfew?.settings))
-      )
+    (key) =>
+      new Promise((res) => chrome.storage.local.get(key, (d) => res(d[key]?.settings))),
+    STORAGE_KEY
   );
   console.log("settings final:", JSON.stringify(final));
   console.log(final?.protection === null ? "PASS: protection disabled" : "FAIL: still enabled");
@@ -215,6 +215,7 @@ try {
   // label. Drive the real service worker and read its DNR projection: with
   // 2 passes a 25-min budget is open at 25 min used; without them it closes.
   const passRules = await page.evaluate(async () => {
+    const { STORAGE_KEY } = await import(chrome.runtime.getURL("src/common/storage.js"));
     const { dayKey } = await import(chrome.runtime.getURL("src/common/time.js"));
     const day = dayKey();
     const item = {
@@ -248,7 +249,7 @@ try {
       settings: { version: 1, itemSeq: 9001, protection: null },
     };
     const write = (state) =>
-      new Promise((res) => chrome.storage.local.set({ curfew: state }, res));
+      new Promise((res) => chrome.storage.local.set({ [STORAGE_KEY]: state }, res));
     const hasRule = async () =>
       (await chrome.declarativeNetRequest.getDynamicRules()).some((r) => r.id === 9001);
 
@@ -276,6 +277,7 @@ try {
   // is 2 min old must be credited when the dashboard/wall flushes on open —
   // otherwise the counter sits still and the wall never lands.
   const staleFlush = await page.evaluate(async () => {
+    const { STORAGE_KEY } = await import(chrome.runtime.getURL("src/common/storage.js"));
     const { dayKey } = await import(chrome.runtime.getURL("src/common/time.js"));
     const day = dayKey();
     const now = Date.now();
@@ -314,11 +316,11 @@ try {
       runtime: { passUntil: {}, dayOverrides: {}, lastRolloverDay: day },
       settings: { version: 1, itemSeq: 9002, protection: null },
     };
-    await new Promise((res) => chrome.storage.local.set({ curfew: state }, res));
+    await new Promise((res) => chrome.storage.local.set({ [STORAGE_KEY]: state }, res));
     // exactly what popup.js and blocked.js now send on open
     await chrome.runtime.sendMessage({ type: "flush" });
     const after = await new Promise((res) =>
-      chrome.storage.local.get("curfew", (d) => res(d.curfew))
+      chrome.storage.local.get(STORAGE_KEY, (d) => res(d[STORAGE_KEY]))
     );
     const rules = await chrome.declarativeNetRequest.getDynamicRules();
     return {
@@ -336,6 +338,7 @@ try {
 
   // A second "stay anyway" from a stale wall must not burn a second pass.
   const doubleBurn = await page.evaluate(async () => {
+    const { STORAGE_KEY } = await import(chrome.runtime.getURL("src/common/storage.js"));
     const { dayKey } = await import(chrome.runtime.getURL("src/common/time.js"));
     const day = dayKey();
     const item = {
@@ -360,7 +363,7 @@ try {
       runtime: { passUntil: {}, dayOverrides: {}, lastRolloverDay: day },
       settings: { version: 1, itemSeq: 9003, protection: null },
     };
-    await new Promise((res) => chrome.storage.local.set({ curfew: state }, res));
+    await new Promise((res) => chrome.storage.local.set({ [STORAGE_KEY]: state }, res));
 
     const first = await chrome.runtime.sendMessage({
       type: "pass:request",
@@ -371,7 +374,7 @@ try {
       itemId: item.id,
     });
     const after = await new Promise((res) =>
-      chrome.storage.local.get("curfew", (d) => res(d.curfew))
+      chrome.storage.local.get(STORAGE_KEY, (d) => res(d[STORAGE_KEY]))
     );
     return {
       firstOk: Boolean(first?.ok),
@@ -400,8 +403,9 @@ try {
   await page.click("#add");
   await sleep(700);
   const added = await page.evaluate(async () => {
+    const { STORAGE_KEY } = await import(chrome.runtime.getURL("src/common/storage.js"));
     const state = await new Promise((res) =>
-      chrome.storage.local.get("curfew", (d) => res(d.curfew))
+      chrome.storage.local.get(STORAGE_KEY, (d) => res(d[STORAGE_KEY]))
     );
     return state?.config?.items?.find((i) => i.pattern === "e2e-op.test") ?? null;
   });
@@ -436,6 +440,7 @@ try {
   await page.bringToFront();
   await sleep(500);
   const exhaust = await helper.evaluate(async (host) => {
+    const { STORAGE_KEY } = await import(chrome.runtime.getURL("src/common/storage.js"));
     const { dayKey } = await import(chrome.runtime.getURL("src/common/time.js"));
     const day = dayKey();
     const now = Date.now();
@@ -474,7 +479,7 @@ try {
       runtime: { passUntil: {}, dayOverrides: {}, lastRolloverDay: day },
       settings: { version: 1, itemSeq: 9010, protection: null },
     };
-    await new Promise((res) => chrome.storage.local.set({ curfew: state }, res));
+    await new Promise((res) => chrome.storage.local.set({ [STORAGE_KEY]: state }, res));
     await chrome.runtime.sendMessage({ type: "flush" });
     const alarm = await chrome.alarms.get("exhaust");
     // Alarm exposes scheduledTime; `when` is only a create() input.
@@ -490,6 +495,7 @@ try {
   // Anti-infinite-scroll: a session past its limit closes the site, drops the
   // session and arms the cooldown alarm that will re-open it.
   const cooldown = await helper.evaluate(async (host) => {
+    const { STORAGE_KEY } = await import(chrome.runtime.getURL("src/common/storage.js"));
     const { dayKey } = await import(chrome.runtime.getURL("src/common/time.js"));
     const day = dayKey();
     const now = Date.now();
@@ -528,10 +534,10 @@ try {
       },
       settings: { version: 1, itemSeq: 9011, protection: null },
     };
-    await new Promise((res) => chrome.storage.local.set({ curfew: state }, res));
+    await new Promise((res) => chrome.storage.local.set({ [STORAGE_KEY]: state }, res));
     await chrome.runtime.sendMessage({ type: "flush" });
     const after = await new Promise((res) =>
-      chrome.storage.local.get("curfew", (d) => res(d.curfew))
+      chrome.storage.local.get(STORAGE_KEY, (d) => res(d[STORAGE_KEY]))
     );
     const rules = await chrome.declarativeNetRequest.getDynamicRules();
     const alarm = await chrome.alarms.get("cooldown:9011");
@@ -562,6 +568,7 @@ try {
   // a restored tab may hit one before the worker reconciles. Opening such a
   // stale wall must leave on its own instead of trapping the user.
   await helper.evaluate(async (host) => {
+    const { STORAGE_KEY } = await import(chrome.runtime.getURL("src/common/storage.js"));
     const { dayKey } = await import(chrome.runtime.getURL("src/common/time.js"));
     const day = dayKey();
     const item = {
@@ -577,7 +584,7 @@ try {
     await new Promise((res) =>
       chrome.storage.local.set(
         {
-          curfew: {
+          [STORAGE_KEY]: {
             schema: 1,
             config: {
               masterEnabled: true,
@@ -659,6 +666,7 @@ try {
   // place: sites, history, pass counts, the live pass window and the
   // protection setting all survive, and the migrated document is persisted.
   const migrated = await helper.evaluate(async (host) => {
+    const { STORAGE_KEY } = await import(chrome.runtime.getURL("src/common/storage.js"));
     const { dayKey } = await import(chrome.runtime.getURL("src/common/time.js"));
     const day = dayKey();
     const doc = {
@@ -692,12 +700,16 @@ try {
       runtime: { unblockUntil: { [host]: Date.now() + 300_000 }, dayOverrides: {} },
       settings: { version: 1, itemSeq: 9100, protection: { kind: "equation" } },
     };
+    // A genuine legacy install: only the old key holds the document.
+    await new Promise((res) => chrome.storage.local.remove(STORAGE_KEY, res));
     await new Promise((res) => chrome.storage.local.set({ curfew: doc }, res));
     const { load } = await import(chrome.runtime.getURL("src/common/storage.js"));
     const state = await load();
-    const stored = (
-      await new Promise((res) => chrome.storage.local.get("curfew", (d) => res(d.curfew)))
+    const box = await new Promise((res) =>
+      chrome.storage.local.get([STORAGE_KEY, "curfew"], res)
     );
+    const stored = box[STORAGE_KEY];
+    const legacy = box.curfew;
     return {
       schema: state.schema,
       items: state.config.items.length,
@@ -710,6 +722,8 @@ try {
       storedSchema: stored?.schema ?? null,
       storedItems: stored?.config?.items?.length ?? null,
       storedProtection: stored?.settings?.protection?.kind ?? null,
+      legacySchema: legacy?.schema ?? null,
+      legacyItems: legacy?.config?.items?.length ?? null,
     };
   }, siteHost);
   console.log("v1 migration:", JSON.stringify(migrated));
@@ -724,7 +738,11 @@ try {
     migrated.protection === "equation" &&
     migrated.storedSchema === 2 &&
     migrated.storedItems === 1 &&
-    migrated.storedProtection === "equation";
+    migrated.storedProtection === "equation" &&
+    // The legacy key keeps its own copy untouched: an old build can no longer
+    // fight the current one over the same bytes.
+    migrated.legacySchema === 1 &&
+    migrated.legacyItems === 1;
   if (!migrationOk) {
     console.log("FAIL: a stored v1 document did not survive the migration");
     process.exitCode = 1;

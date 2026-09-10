@@ -7,8 +7,21 @@ import {
   clampPassMinutes,
 } from "./limits.js";
 
-const KEY = "curfew";
+/** The key every build up to schema 2 wrote. Read once, then never written. */
+const LEGACY_KEY = "curfew";
+
+/** Documents live under a VERSION-SCOPED key. A page left over from an older
+ *  build keeps reading and writing `curfew` (its own idea of the document) and
+ *  can no longer fight the current build for the same bytes — which is exactly
+ *  how a field install had its sites, passes and protection reset over and
+ *  over: a stale page from the pre-rename build rewrote the whole document on
+ *  every one of its renders. */
 const SCHEMA = 2;
+const KEY = `${LEGACY_KEY}:v${SCHEMA}`;
+
+/** Exposed for tests and diagnostics. */
+export const STORAGE_KEY = KEY;
+export const LEGACY_STORAGE_KEY = LEGACY_KEY;
 
 /** Whether the last read produced a document this build may write back. Set
  *  false when the stored document is from a newer build (or unreadable), so no
@@ -305,7 +318,7 @@ export function migrate(state) {
 export async function load() {
   let box;
   try {
-    box = await chrome.storage.local.get(KEY);
+    box = await chrome.storage.local.get([KEY, LEGACY_KEY]);
   } catch (error) {
     // After an extension reload, orphaned pages fail every chrome.* call
     // with "Extension context invalidated" — reload instead of dying.
@@ -314,7 +327,14 @@ export async function load() {
     }
     throw error;
   }
-  const raw = box[KEY];
+  // Documents of this schema live under KEY; anything older is read from the
+  // legacy key exactly once (that is where a pre-rename build left it) and
+  // carried forward. The legacy key is never written again.
+  const fromLegacy = box[KEY] === undefined && box[LEGACY_KEY] !== undefined;
+  const raw = fromLegacy ? box[LEGACY_KEY] : box[KEY];
+  if (fromLegacy) {
+    console.warn("curfew: migrating the document from the legacy key");
+  }
 
   // A document written by a NEWER build means this context is stale (an
   // orphaned page from before a reload). Read it, keep it, never rewrite it:
@@ -354,7 +374,7 @@ export async function load() {
     // recoverable instead of final.
     if (raw && Number(raw.schema) < SCHEMA) {
       try {
-        await chrome.storage.local.set({ [`${KEY}:backup-v${Number(raw.schema)}`]: raw });
+        await chrome.storage.local.set({ [`${LEGACY_KEY}:backup-v${Number(raw.schema)}`]: raw });
         console.warn(`curfew: kept a backup of the v${Number(raw.schema)} document`);
       } catch (error) {
         console.error("curfew: could not write the migration backup", error);
