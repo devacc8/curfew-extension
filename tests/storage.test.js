@@ -241,10 +241,9 @@ test("migrate fills missing top-level keys", async () => {
   assert.equal(state.session, null);
 });
 
-test("migrate resets a state written by a newer schema", async () => {
-  setChrome();
-  await update((s) => Object.assign(s, { schema: 99, future: true }));
-  const state = await load();
+test("migrate: a newer schema resolves to defaults (the IMPORT path)", () => {
+  // An imported file from the future must never be trusted...
+  const state = migrate({ schema: 99, config: { items: [{ pattern: "x.com" }] }, future: true });
   assert.equal(state.schema, 2);
   assert.deepEqual(state.config.items, []);
   assert.equal(state.future, undefined);
@@ -317,4 +316,44 @@ test("migrate v1 -> v2 renames the pass vocabulary", () => {
   assert.deepEqual(state.usage.days["2026-09-08"].passes, { "x.com": 2 });
   assert.equal(state.usage.days["2026-09-08"].unblocks, undefined);
   assert.equal(state.usage.days["2026-09-08"].patternSeconds["x.com"], 600);
+});
+
+test("load never overwrites a document from a newer build", async () => {
+  const stub = setChrome();
+  const newer = {
+    schema: 99,
+    config: {
+      masterEnabled: true,
+      graceSeconds: 10,
+      passMinutes: 15,
+      passesPerDay: 2,
+      items: [
+        {
+          id: "u1",
+          ruleId: 1001,
+          pattern: "x.com",
+          budgetMinutes: 25,
+          enabled: true,
+          access: "granted",
+        },
+      ],
+    },
+    usage: { days: { "2026-09-09": { patternSeconds: { "x.com": 600 }, passes: { "x.com": 1 }, bySite: { "x.com": 600 } } } },
+    session: null,
+    runtime: { passUntil: { "x.com": 123 }, cooldownUntil: {}, dayOverrides: {} },
+    settings: { version: 1, itemSeq: 1001, protection: { kind: "equation" } },
+  };
+  stub.data.set("curfew", structuredClone(newer));
+
+  const state = await load();
+
+  // The stored document is untouched — this is the data-loss guard.
+  assert.equal(stub.data.get("curfew").schema, 99);
+  assert.equal(stub.data.get("curfew").config.items.length, 1);
+  // ...and the caller still gets a usable view of it.
+  assert.equal(state.config.items.length, 1);
+  assert.equal(state.config.passMinutes, 15);
+  assert.equal(state.config.passesPerDay, 2);
+  assert.equal(state.usage.days["2026-09-09"].passes["x.com"], 1);
+  assert.equal(state.settings.protection.kind, "equation");
 });

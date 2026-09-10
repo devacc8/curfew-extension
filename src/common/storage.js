@@ -253,21 +253,8 @@ function sanitize(state) {
   };
 }
 
-/** Resolve any stored/imported shape into the current schema. Pure, exported
- *  for the import pipeline (transfer.js).
- *  @param {any} state - any stored/imported shape; runtime checks below are the
- *  real guard, so the type is deliberately open here.
- *  @returns {CurfewState} */
-export function migrate(state) {
-  if (!state || typeof state !== "object" || Array.isArray(state) || state.schema > SCHEMA) {
-    return defaults();
-  }
-  let s = state;
-  while (s.schema < SCHEMA) {
-    const step = MIGRATIONS[s.schema];
-    if (!step) return defaults();
-    s = step(s);
-  }
+/** Merge a document of a KNOWN schema into current defaults and sanitize it. */
+function mergeIntoDefaults(s) {
   const d = defaults();
   const merged = {
     ...d,
@@ -284,6 +271,28 @@ export function migrate(state) {
   return sanitize(merged);
 }
 
+/** Resolve any stored/imported shape into the current schema. Pure, exported
+ *  for the import pipeline (transfer.js).
+ *
+ *  A document from a NEWER schema resolves to defaults here — right for an
+ *  import (never trust a file from the future), wrong for a live read, which
+ *  is why {@link load} handles that case itself and refuses to write.
+ *  @param {any} state - any stored/imported shape; runtime checks below are the
+ *  real guard, so the type is deliberately open here.
+ *  @returns {CurfewState} */
+export function migrate(state) {
+  if (!state || typeof state !== "object" || Array.isArray(state) || state.schema > SCHEMA) {
+    return defaults();
+  }
+  let s = state;
+  while (s.schema < SCHEMA) {
+    const step = MIGRATIONS[s.schema];
+    if (!step) return defaults();
+    s = step(s);
+  }
+  return mergeIntoDefaults(s);
+}
+
 /** Load state, seeding/migrating on disk only when the shape changes. */
 export async function load() {
   let box;
@@ -298,7 +307,37 @@ export async function load() {
     throw error;
   }
   const raw = box[KEY];
-  const state = migrate(raw ?? defaults());
+
+  // A document written by a NEWER build means this context is stale (an
+  // orphaned page from before a reload). Read it, keep it, never rewrite it:
+  // resetting it to defaults here destroys the user's sites, history and
+  // passes — a real report, not a theory.
+  if (raw && Number(raw.schema) > SCHEMA) {
+    console.warn("curfew: stored document is newer than this build; leaving it alone");
+    // Reload ONCE so the tab picks up the current build; a tab that cannot
+    // (an older build still installed) must not reload forever.
+    try {
+      const store = globalThis.sessionStorage;
+      if (typeof location !== "undefined" && store) {
+        if (!store.getItem("curfew:stale-reload")) {
+          store.setItem("curfew:stale-reload", "1");
+          setTimeout(() => location.reload(), 0);
+        }
+      }
+    } catch {
+      // No location/sessionStorage (the worker): reading on is enough.
+    }
+    return mergeIntoDefaults(raw);
+  }
+
+  let state;
+  try {
+    state = migrate(raw ?? defaults());
+  } catch (error) {
+    // Never destroy a document we cannot parse: keep it and say so loudly.
+    console.error("curfew: could not migrate the stored document", error);
+    return raw ?? defaults();
+  }
   if (!raw || JSON.stringify(raw) !== JSON.stringify(state)) {
     await chrome.storage.local.set({ [KEY]: state });
   }

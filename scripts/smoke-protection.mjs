@@ -655,6 +655,83 @@ try {
     console.log("PASS: a stale wall leaves by itself, without a loop");
   }
 
+  // A v1 document (field names from before the pass rename) must migrate in
+  // place: sites, history, pass counts, the live pass window and the
+  // protection setting all survive, and the migrated document is persisted.
+  const migrated = await helper.evaluate(async (host) => {
+    const { dayKey } = await import(chrome.runtime.getURL("src/common/time.js"));
+    const day = dayKey();
+    const doc = {
+      schema: 1,
+      config: {
+        masterEnabled: true,
+        graceSeconds: 10,
+        unblockMinutes: 15,
+        unblockPassesPerDay: 2,
+        items: [
+          {
+            id: "u1",
+            ruleId: 9100,
+            pattern: host,
+            budgetMinutes: 25,
+            enabled: true,
+            access: "granted",
+          },
+        ],
+      },
+      usage: {
+        days: {
+          [day]: {
+            patternSeconds: { [host]: 600 },
+            unblocks: { [host]: 1 },
+            bySite: { [host]: 600 },
+          },
+        },
+      },
+      session: null,
+      runtime: { unblockUntil: { [host]: Date.now() + 300_000 }, dayOverrides: {} },
+      settings: { version: 1, itemSeq: 9100, protection: { kind: "equation" } },
+    };
+    await new Promise((res) => chrome.storage.local.set({ curfew: doc }, res));
+    const { load } = await import(chrome.runtime.getURL("src/common/storage.js"));
+    const state = await load();
+    const stored = (
+      await new Promise((res) => chrome.storage.local.get("curfew", (d) => res(d.curfew)))
+    );
+    return {
+      schema: state.schema,
+      items: state.config.items.length,
+      passMinutes: state.config.passMinutes,
+      passesPerDay: state.config.passesPerDay,
+      passes: state.usage.days[day]?.passes?.[host] ?? null,
+      usedSeconds: state.usage.days[day]?.patternSeconds?.[host] ?? null,
+      passUntil: state.runtime.passUntil?.[host] ?? null,
+      protection: state.settings.protection?.kind ?? null,
+      storedSchema: stored?.schema ?? null,
+      storedItems: stored?.config?.items?.length ?? null,
+      storedProtection: stored?.settings?.protection?.kind ?? null,
+    };
+  }, siteHost);
+  console.log("v1 migration:", JSON.stringify(migrated));
+  const migrationOk =
+    migrated.schema === 2 &&
+    migrated.items === 1 &&
+    migrated.passMinutes === 15 &&
+    migrated.passesPerDay === 2 &&
+    migrated.passes === 1 &&
+    migrated.usedSeconds === 600 &&
+    typeof migrated.passUntil === "number" &&
+    migrated.protection === "equation" &&
+    migrated.storedSchema === 2 &&
+    migrated.storedItems === 1 &&
+    migrated.storedProtection === "equation";
+  if (!migrationOk) {
+    console.log("FAIL: a stored v1 document did not survive the migration");
+    process.exitCode = 1;
+  } else {
+    console.log("PASS: a v1 document migrates without losing anything");
+  }
+
   await helper.close();
   await new Promise((resolve) => server.close(resolve));
 
