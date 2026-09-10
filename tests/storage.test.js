@@ -357,3 +357,49 @@ test("load never overwrites a document from a newer build", async () => {
   assert.equal(state.usage.days["2026-09-09"].passes["x.com"], 1);
   assert.equal(state.settings.protection.kind, "equation");
 });
+
+test("load keeps a backup of the document before migrating it", async () => {
+  const stub = setChrome();
+  const v1 = {
+    schema: 1,
+    config: {
+      masterEnabled: true,
+      unblockMinutes: 15,
+      unblockPassesPerDay: 2,
+      items: [{ id: "u1", ruleId: 1001, pattern: "x.com", budgetMinutes: 25, enabled: true, access: "granted" }],
+    },
+    usage: { days: {} },
+    runtime: { unblockUntil: {} },
+    settings: { version: 1, itemSeq: 1001, protection: null },
+  };
+  stub.data.set("curfew", structuredClone(v1));
+
+  await load();
+
+  assert.equal(stub.data.get("curfew").schema, 2, "not migrated");
+  const backup = stub.data.get("curfew:backup-v1");
+  assert.ok(backup, "no backup was kept");
+  assert.equal(backup.schema, 1);
+  assert.equal(backup.config.items.length, 1);
+});
+
+test("update refuses to downgrade a document from a newer build", async () => {
+  const stub = setChrome();
+  stub.data.set(
+    "curfew",
+    structuredClone({
+      schema: 99,
+      config: { items: [{ id: "u1", ruleId: 1001, pattern: "x.com", enabled: true, access: "granted" }] },
+      usage: { days: {} },
+      runtime: {},
+      settings: {},
+    })
+  );
+  await load();
+  await update((s) => {
+    s.config.masterEnabled = false;
+  });
+  const stored = stub.data.get("curfew");
+  assert.equal(stored.schema, 99, "the newer document was rewritten");
+  assert.equal(stored.config.items.length, 1);
+});

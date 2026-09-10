@@ -1,4 +1,4 @@
-import { load, update, upsertItem } from "./common/storage.js";
+import { STATE_SCHEMA, load, update, upsertItem } from "./common/storage.js";
 import { nextLocalMidnight } from "./common/time.js";
 import { KEEP_DAYS, MAX_CREDIT_MS, TICK_MINUTES, IDLE_SECONDS } from "./common/limits.js";
 import { pruneRuntime, trackTick, applyRollover } from "./common/tracking.js";
@@ -86,6 +86,11 @@ async function bootReconcile() {
   await reconciler.bounceClosedTabs(state);
 }
 serial(bootReconcile).catch((error) => console.error("curfew: boot reconcile failed", error));
+
+// Which build is actually running? Answering that used to need guesswork.
+console.log(
+  `curfew: worker ready (schema ${STATE_SCHEMA}, extension ${chrome.runtime.getManifest().version})`
+);
 
 function ensureContextMenu() {
   chrome.contextMenus.removeAll(() => {

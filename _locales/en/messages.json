@@ -229,5 +229,8 @@
   },
   "closedCooldownReason": {
     "message": "Taking a break"
+  },
+  "saveFailed": {
+    "message": "Could not save — check the extension's service worker console"
   }
 }

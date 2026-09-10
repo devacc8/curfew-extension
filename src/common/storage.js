@@ -10,6 +10,14 @@ import {
 const KEY = "curfew";
 const SCHEMA = 2;
 
+/** Whether the last read produced a document this build may write back. Set
+ *  false when the stored document is from a newer build (or unreadable), so no
+ *  write can downgrade or destroy it. */
+let writable = true;
+
+/** The schema this build writes, for diagnostics. */
+export const STATE_SCHEMA = SCHEMA;
+
 /**
  * @typedef {object} Item
  * @property {string} id
@@ -313,6 +321,7 @@ export async function load() {
   // resetting it to defaults here destroys the user's sites, history and
   // passes — a real report, not a theory.
   if (raw && Number(raw.schema) > SCHEMA) {
+    writable = false;
     console.warn("curfew: stored document is newer than this build; leaving it alone");
     // Reload ONCE so the tab picks up the current build; a tab that cannot
     // (an older build still installed) must not reload forever.
@@ -336,9 +345,21 @@ export async function load() {
   } catch (error) {
     // Never destroy a document we cannot parse: keep it and say so loudly.
     console.error("curfew: could not migrate the stored document", error);
+    writable = false;
     return raw ?? defaults();
   }
+  writable = true;
   if (!raw || JSON.stringify(raw) !== JSON.stringify(state)) {
+    // Insurance: keep the pre-migration document, so a bad migration is
+    // recoverable instead of final.
+    if (raw && Number(raw.schema) < SCHEMA) {
+      try {
+        await chrome.storage.local.set({ [`${KEY}:backup-v${Number(raw.schema)}`]: raw });
+        console.warn(`curfew: kept a backup of the v${Number(raw.schema)} document`);
+      } catch (error) {
+        console.error("curfew: could not write the migration backup", error);
+      }
+    }
     await chrome.storage.local.set({ [KEY]: state });
   }
   return state;
@@ -353,6 +374,14 @@ export async function update(mutator, preloaded) {
   const before = JSON.stringify(state);
   mutator(state);
   if (JSON.stringify(state) !== before) {
+    if (!writable) {
+      // Same guard as load(): never write back a document this build could
+      // not read faithfully. Without this the first page write through the
+      // worker would rewrite it as "current schema + defaults" and silently
+      // drop every field it cannot express.
+      console.error("curfew: refusing to overwrite a document this build cannot read");
+      return state;
+    }
     await chrome.storage.local.set({ [KEY]: state });
   }
   return state;
@@ -367,12 +396,18 @@ export async function update(mutator, preloaded) {
  * @returns the op result, or null when the worker refused it.
  */
 export async function mutate(op, payload) {
-  const response = await chrome.runtime.sendMessage({
-    type: "state:apply",
-    op,
-    payload,
-  });
-  return response?.ok ? response.result : null;
+  let response;
+  try {
+    response = await chrome.runtime.sendMessage({ type: "state:apply", op, payload });
+  } catch (error) {
+    console.error(`curfew: worker unreachable for op "${op}"`, error);
+    return null;
+  }
+  if (!response?.ok) {
+    console.error(`curfew: op "${op}" was refused`, response);
+    return null;
+  }
+  return response.result;
 }
 
 /** Subscribe to whole-state changes. */

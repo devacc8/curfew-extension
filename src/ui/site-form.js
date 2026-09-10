@@ -11,7 +11,8 @@ import { requestAccess } from "./access.js";
  * grant. The outcome is then recorded through the worker like any other write.
  * @param {string} rawPattern - whatever the user typed (URL, host, wildcard).
  * @param {unknown} minutes - requested daily budget.
- * @returns {Promise<{ok: true, pattern: string, granted: boolean} | {ok: false, error: string}>}
+ * @returns {Promise<{ ok: boolean, pattern?: string, granted?: boolean,
+ *   error?: "host" | "port" | "path" | "save" }>}
  */
 export async function addSite(rawPattern, minutes) {
   const parsed = parsePattern(rawPattern);
@@ -22,6 +23,7 @@ export async function addSite(rawPattern, minutes) {
     budgetMinutes: clampBudgetMinutes(minutes),
     access: "denied",
   });
+  if (created === null) return { ok: false, error: "save" };
   const granted = await requestAccess(parsed.pattern);
   await mutate("item.update", {
     id: created?.id,

@@ -197,7 +197,8 @@ els.master.addEventListener("change", async () => {
 els.add.addEventListener("click", async () => {
   const result = await addSite(els.pattern.value, Number(els.minutes.value));
   if (!result.ok) {
-    rejectPattern();
+    if (result.error === "save") setStatus("saveFailed");
+    else rejectPattern();
     return;
   }
   els.pattern.value = "";

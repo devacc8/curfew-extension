@@ -229,5 +229,8 @@
   },
   "closedCooldownReason": {
     "message": "Перерыв"
+  },
+  "saveFailed": {
+    "message": "Не удалось сохранить — смотрите консоль service worker"
   }
 }
