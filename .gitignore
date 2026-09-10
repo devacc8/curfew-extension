@@ -23,3 +23,5 @@ docs/screenshots/gif-frames/
 
 # local-only repo decoration tool (not part of the public project)
 scripts/capture.mjs
+curfew-extension.zip
+curfew-extension.tar.gz
