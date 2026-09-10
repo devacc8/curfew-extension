@@ -8,6 +8,11 @@
 <body>
   <header>
     <h1 data-i18n="optionsTitle"></h1>
+    <div class="segmented" id="themeChoice" role="group" data-i18n-title="themeLabel">
+      <button type="button" data-theme-value="system" aria-pressed="false" data-i18n-title="themeSystem" data-i18n-aria="themeSystem"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="8.5" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M6 13.5h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+      <button type="button" data-theme-value="dark" aria-pressed="false" data-i18n-title="themeDark" data-i18n-aria="themeDark"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 9.8A5.8 5.8 0 0 1 6.2 2.5a5.8 5.8 0 1 0 7.3 7.3Z" fill="currentColor"/></svg></button>
+      <button type="button" data-theme-value="light" aria-pressed="false" data-i18n-title="themeLight" data-i18n-aria="themeLight"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3.1" fill="currentColor"/><path d="M8 1.2v1.8M8 13v1.8M1.2 8H3M13 8h1.8M3.2 3.2l1.3 1.3M11.5 11.5l1.3 1.3M12.8 3.2l-1.3 1.3M4.5 11.5l-1.3 1.3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+    </div>
     <label class="switch" data-i18n-title="masterToggle">
       <input type="checkbox" id="master">
       <span class="slider"></span>
@@ -50,17 +55,6 @@
       <div class="protect-row">
         <label for="passesLimit" data-i18n="passesLimitLabel"></label>
         <input type="number" id="passesLimit" min="0" max="99">
-      </div>
-    </div>
-  </section>
-
-  <section>
-    <div class="protect-row">
-      <span data-i18n="themeLabel"></span>
-      <div class="segmented" id="themeChoice" role="group" aria-labelledby="themeLabel">
-        <button type="button" data-theme-value="system" aria-pressed="false" data-i18n-title="themeSystem" data-i18n-aria="themeSystem"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="8.5" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M6 13.5h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
-        <button type="button" data-theme-value="dark" aria-pressed="false" data-i18n-title="themeDark" data-i18n-aria="themeDark"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M13.5 9.8A5.8 5.8 0 0 1 6.2 2.5a5.8 5.8 0 1 0 7.3 7.3Z" fill="currentColor"/></svg></button>
-        <button type="button" data-theme-value="light" aria-pressed="false" data-i18n-title="themeLight" data-i18n-aria="themeLight"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><circle cx="8" cy="8" r="3.1" fill="currentColor"/><path d="M8 1.2v1.8M8 13v1.8M1.2 8H3M13 8h1.8M3.2 3.2l1.3 1.3M11.5 11.5l1.3 1.3M12.8 3.2l-1.3 1.3M4.5 11.5l-1.3 1.3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
       </div>
     </div>
   </section>
