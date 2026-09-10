@@ -22,7 +22,7 @@ const els = {
   protectMsg: /** @type {HTMLElement} */ (document.getElementById("protectMsg")),
   passesLimit: /** @type {HTMLInputElement} */ (document.getElementById("passesLimit")),
   search: /** @type {HTMLInputElement} */ (document.getElementById("siteSearch")),
-  themeChoice: /** @type {HTMLSelectElement} */ (document.getElementById("themeChoice")),
+  themeChoice: /** @type {HTMLElement} */ (document.getElementById("themeChoice")),
 };
 
 let siteFilter = "";
@@ -153,7 +153,7 @@ function buildRow(item) {
 async function render() {
   const state = await load();
   applyTheme(state);
-  els.themeChoice.value = state.settings.theme ?? "system";
+  paintThemeChoice(state.settings.theme ?? "system");
   const snapshot = JSON.stringify([state.config, state.runtime, state.usage]);
   if (snapshot === lastPainted) return;
   lastPainted = snapshot;
@@ -198,8 +198,24 @@ els.master.addEventListener("change", async () => {
   await mutate("master.set", { value: true });
 });
 
-els.themeChoice.addEventListener("change", async () => {
-  await mutate("theme.set", { value: els.themeChoice.value });
+/** One button per choice, the active one pressed. */
+function paintThemeChoice(theme) {
+  const buttons = /** @type {NodeListOf<HTMLElement>} */ (
+    els.themeChoice.querySelectorAll("[data-theme-value]")
+  );
+  for (const button of buttons) {
+    button.setAttribute("aria-pressed", String(button.dataset.themeValue === theme));
+  }
+}
+
+els.themeChoice.addEventListener("click", async (event) => {
+  const target = /** @type {HTMLElement | null} */ (event.target);
+  const button = target?.closest("[data-theme-value]");
+  if (!button) return;
+  const value = button.getAttribute("data-theme-value");
+  paintThemeChoice(value);
+  const result = await mutate("theme.set", { value });
+  if (result === null) setStatus("saveFailed");
 });
 
 els.add.addEventListener("click", async () => {

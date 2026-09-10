@@ -755,7 +755,7 @@ try {
   await page.goto(`chrome-extension://${extensionId}/src/options.html`, {
     waitUntil: "networkidle0",
   });
-  await page.select("#themeChoice", "light");
+  await page.click('#themeChoice button[data-theme-value="light"]');
   await sleep(400);
   const lightTheme = await page.evaluate(() => {
     const root = getComputedStyle(document.documentElement);
@@ -774,7 +774,7 @@ try {
   await page.goto(`chrome-extension://${extensionId}/src/options.html`, {
     waitUntil: "networkidle0",
   });
-  await page.select("#themeChoice", "system");
+  await page.click('#themeChoice button[data-theme-value="system"]');
   await sleep(400);
   const backToSystem = await page.evaluate(() => document.documentElement.dataset.theme ?? null);
   console.log(
