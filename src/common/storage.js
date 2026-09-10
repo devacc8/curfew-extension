@@ -69,7 +69,8 @@ export const STATE_SCHEMA = SCHEMA;
  * @property {{ passUntil: Record<string, number>, cooldownUntil: Record<string, number>,
  *              dayOverrides: Record<string, { day: string, action: "allow" | "block" }>,
  *              lastRolloverDay?: string }} runtime
- * @property {{ version: number, itemSeq: number, protection: null | { kind: string } }} settings
+ * @property {{ version: number, itemSeq: number, protection: null | { kind: string },
+ *              theme: "system" | "light" | "dark" }} settings
  */
 
 /** @returns {CurfewState} */
@@ -86,7 +87,7 @@ function defaults() {
     usage: { days: {} },
     session: null,
     runtime: { passUntil: {}, cooldownUntil: {}, dayOverrides: {} },
-    settings: { version: 1, itemSeq: 1000, protection: null },
+    settings: { version: 1, itemSeq: 1000, protection: null, theme: "system" },
   };
 }
 
@@ -242,6 +243,10 @@ function sanitize(state) {
     ...state.settings,
     version: finiteNumber(state.settings?.version, 1),
     itemSeq: Math.max(1000, Math.floor(finiteNumber(state.settings?.itemSeq, 1000))),
+    theme:
+      state.settings?.theme === "light" || state.settings?.theme === "dark"
+        ? state.settings.theme
+        : "system",
     protection:
       state.settings?.protection &&
       typeof state.settings.protection === "object" &&

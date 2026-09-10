@@ -38,7 +38,7 @@ const STATE = {
     passUntil: { "*.reddit.com": 999 },
     dayOverrides: { "*.reddit.com": { day: "2026-09-01", action: "block" } },
   },
-  settings: { version: 1, itemSeq: 1001, protection: null },
+  settings: { version: 1, itemSeq: 1001, protection: null, theme: "system" },
 };
 
 test("encode -> decode round-trips config and usage", () => {

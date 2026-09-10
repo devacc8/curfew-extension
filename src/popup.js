@@ -1,5 +1,6 @@
 import { load, mutate, onChanged } from "./common/storage.js";
 import { applyI18n, msg } from "./ui/i18n.js";
+import { applyTheme } from "./ui/theme.js";
 import { grantItem, syncAccessFlags } from "./ui/access.js";
 import { addSite } from "./ui/site-form.js";
 import { dailyTotals } from "./common/budget.js";
@@ -163,6 +164,7 @@ function buildRow(item, state) {
 
 async function render() {
   const state = await load();
+  applyTheme(state);
   const day = dayKey();
   const snapshot = JSON.stringify([
     state.config,

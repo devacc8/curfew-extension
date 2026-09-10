@@ -750,6 +750,51 @@ try {
     console.log("PASS: a v1 document migrates without losing anything");
   }
 
+  // Appearance: one choice drives every surface, and the challenge dialogs
+  // read the same variables instead of a hardcoded palette.
+  await page.goto(`chrome-extension://${extensionId}/src/options.html`, {
+    waitUntil: "networkidle0",
+  });
+  await page.select("#themeChoice", "light");
+  await sleep(400);
+  const lightTheme = await page.evaluate(() => {
+    const root = getComputedStyle(document.documentElement);
+    return {
+      attr: document.documentElement.dataset.theme ?? null,
+      bg: root.getPropertyValue("--bg").trim(),
+      panel: root.getPropertyValue("--panel-bg").trim(),
+      accent: root.getPropertyValue("--accent").trim(),
+    };
+  });
+  await page.goto(`chrome-extension://${extensionId}/src/blocked.html?domain=${siteHost}`, {
+    waitUntil: "domcontentloaded",
+  });
+  await sleep(400);
+  const wallTheme = await page.evaluate(() => document.documentElement.dataset.theme ?? null);
+  await page.goto(`chrome-extension://${extensionId}/src/options.html`, {
+    waitUntil: "networkidle0",
+  });
+  await page.select("#themeChoice", "system");
+  await sleep(400);
+  const backToSystem = await page.evaluate(() => document.documentElement.dataset.theme ?? null);
+  console.log(
+    "theme:",
+    JSON.stringify({ lightTheme, wallTheme, backToSystem })
+  );
+  const themeOk =
+    lightTheme.attr === "light" &&
+    lightTheme.bg === "#f5f6f8" &&
+    lightTheme.panel === "#ffffff" &&
+    lightTheme.accent === "#2f6bff" &&
+    wallTheme === "light" &&
+    backToSystem === null;
+  if (!themeOk) {
+    console.log("FAIL: the theme choice does not reach every surface");
+    process.exitCode = 1;
+  } else {
+    console.log("PASS: one theme choice drives every surface");
+  }
+
   await helper.close();
   await new Promise((resolve) => server.close(resolve));
 

@@ -1,0 +1,66 @@
+/* The single palette for every surface, including the challenge dialogs
+ * (protect.js reads these variables instead of hardcoding hex).
+ *
+ * Dark is the default and the fallback. "System" needs no JavaScript at all:
+ * the media query below handles it before a single script runs, which is why
+ * a light-mode user never sees a dark flash on first paint. An explicit
+ * choice in Settings wins over the system by setting data-theme on <html>. */
+
+:root {
+  color-scheme: dark;
+  --bg: #14161a;
+  --fg: #e8eaed;
+  --muted: #9aa0a6;
+  --line: #2a2d33;
+  --accent: #7da2ff;
+  --danger: #e07a7a;
+  --ok: #7fce95;
+  --warn: #e0b060;
+  --input-bg: #1c1f24;
+  --panel-bg: #1c1f24;
+  --bar-bg: #24272d;
+  --slider-bg: #3a3f47;
+  --on-accent: #10131a;
+  --page-bg: linear-gradient(160deg, #1d2f55 0%, #14161a 45%, #0a0f1c 100%) fixed;
+  --wall-bg: linear-gradient(135deg, #1d2f55 0%, #0a0f1c 75%);
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    color-scheme: light;
+    --bg: #f5f6f8;
+    --fg: #1b1e24;
+    --muted: #5f6672;
+    --line: #d9dde3;
+    --accent: #2f6bff;
+    --danger: #c0392b;
+    --ok: #1f8a4c;
+    --warn: #a86400;
+    --input-bg: #ffffff;
+    --panel-bg: #ffffff;
+    --bar-bg: #e3e6eb;
+    --slider-bg: #c7ccd4;
+    --on-accent: #ffffff;
+    --page-bg: linear-gradient(160deg, #e6edfd 0%, #f5f6f8 45%, #ffffff 100%) fixed;
+    --wall-bg: linear-gradient(135deg, #e6edfd 0%, #ffffff 75%);
+  }
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f5f6f8;
+  --fg: #1b1e24;
+  --muted: #5f6672;
+  --line: #d9dde3;
+  --accent: #2f6bff;
+  --danger: #c0392b;
+  --ok: #1f8a4c;
+  --warn: #a86400;
+  --input-bg: #ffffff;
+  --panel-bg: #ffffff;
+  --bar-bg: #e3e6eb;
+  --slider-bg: #c7ccd4;
+  --on-accent: #ffffff;
+  --page-bg: linear-gradient(160deg, #e6edfd 0%, #f5f6f8 45%, #ffffff 100%) fixed;
+  --wall-bg: linear-gradient(135deg, #e6edfd 0%, #ffffff 75%);
+}

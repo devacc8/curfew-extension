@@ -86,6 +86,12 @@ const OPS = {
     return { value: state.config.passesPerDay };
   },
 
+  /** Colour scheme: "system" (default), "light" or "dark". */
+  "theme.set": (state, { value }) => {
+    state.settings.theme = value === "light" || value === "dark" ? value : "system";
+    return { value: state.settings.theme };
+  },
+
   /** Willpower Protection config, or null to switch it off. */
   "protection.set": (state, { value }) => {
     state.settings.protection = value ?? null;

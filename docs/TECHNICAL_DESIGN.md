@@ -282,7 +282,18 @@ named op (`common/ops.js`) inside its serialized mutation queue (§8.5). An
 invariant test (§12.3) fails the build if any other `src/` file touches
 `chrome.storage.local` or imports the low-level `update()`.
 
-### 5.5 `ops.js` — the mutation vocabulary
+### 5.5 `theme.css` — one palette, three surfaces
+
+Every colour lives in `src/theme.css` as a custom property (dark by default).
+System is the real default and needs no JavaScript: the
+`prefers-color-scheme` media query answers it before any script runs, so a
+light-mode user never sees a dark flash. An explicit choice in Settings sets
+`data-theme` on `<html>` (`ui/theme.js`), which wins over the system.
+
+The challenge dialogs in `protect.js` reference the same variables instead of
+hardcoded hex, so the equation and the 15-puzzle follow the choice too.
+
+### 5.6 `ops.js` — the mutation vocabulary
 
 `applyOp(state, op, payload)` is the complete set of state mutations, pure
 and unit-tested: `item.add`, `item.update` (enabled / budgetMinutes /
@@ -291,7 +302,7 @@ access only), `item.accessBatch`, `item.remove`, `master.set`,
 SW, never trusted raw). Each returns a JSON-serializable result — the page
 gets the created item's id back from `item.add`. Unknown ops throw.
 
-### 5.6 `rules.js` — enforcement projection
+### 5.7 `rules.js` — enforcement projection
 
 ```js
 /** No-rule-means-open, from the enforcement point of view. Precedence:
@@ -306,7 +317,7 @@ export function isOpen(state, item, day, nowMs)
 export function desiredRules(state, { day, nowMs, blockedPageFor })
 ```
 
-### 5.7 `transfer.js` — export/import + retention
+### 5.8 `transfer.js` — export/import + retention
 
 ```js
 /** One-file export: { kind, version, exportedAt, state } (§3.6). */
@@ -320,7 +331,7 @@ export function decodeExport(text)   // -> { ok, state } | { ok: false, error }
 export function pruneDays(state, keep)
 ```
 
-### 5.8 `tracking.js` — the accounting entry points
+### 5.9 `tracking.js` — the accounting entry points
 
 ```js
 /** One environment observation: wake recovery + transition + credit guards. */
@@ -394,7 +405,11 @@ Extends PROJECT §4.2 — this section is authoritative.
     "lastRolloverDay": "2026-09-02"
   },
 
-  "settings": { "version": 1, "itemSeq": 1000, "protection": { "kind": "equation" } }
+  "settings": {
+    "version": 1, "itemSeq": 1000,
+    "protection": { "kind": "equation" },
+    "theme": "system"                 // "system" | "light" | "dark" (§10)
+  }
 }
 ```
 

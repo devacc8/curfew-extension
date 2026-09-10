@@ -10,13 +10,16 @@ import {
 
 const msg = (key) => chrome.i18n.getMessage(key);
 
-const INK = "#e8eaed";
-const MUTED = "#9aa0a6";
-const LINE = "#2a2d33";
-const ACCENT = "#7da2ff";
-const FIELD_BG = "#14161a";
-const PANEL_BG = "#1c1f24";
-const DANGER = "#e07a7a";
+/* Colours come from theme.css: the dialogs follow the same light/dark choice
+ * as every other surface instead of being permanently dark. */
+const INK = "var(--fg)";
+const MUTED = "var(--muted)";
+const LINE = "var(--line)";
+const ACCENT = "var(--accent)";
+const FIELD_BG = "var(--input-bg)";
+const PANEL_BG = "var(--panel-bg)";
+const DANGER = "var(--danger)";
+const ON_ACCENT = "var(--on-accent)";
 
 /** Every dialog is a FRESH element: stale close events from a previous
  *  dialog generation must never reach the next one (a real bug: the setup
@@ -83,7 +86,7 @@ function destroyDialog() {
 function styleButton(button, primary) {
   if (primary) {
     button.style.background = ACCENT;
-    button.style.color = "#10131a";
+    button.style.color = ON_ACCENT;
     button.style.border = "0";
   } else {
     button.style.background = "transparent";
@@ -136,7 +139,7 @@ function choiceButtons(options, initial, onChange) {
     if (!button) return;
     if (button.dataset.value === selected) {
       button.style.background = ACCENT;
-      button.style.color = "#10131a";
+      button.style.color = ON_ACCENT;
       button.style.border = "0";
     } else {
       button.style.background = FIELD_BG;

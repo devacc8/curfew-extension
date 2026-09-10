@@ -4,6 +4,7 @@ import { parsePattern, matchesHost } from "./common/patterns.js";
 import { secondsUsedToday, passesLeftToday } from "./common/budget.js";
 import { describeItem } from "./common/status.js";
 import { formatClock } from "./common/view.js";
+import { applyTheme } from "./ui/theme.js";
 
 const msg = (key) => chrome.i18n.getMessage(key);
 
@@ -90,6 +91,7 @@ async function init() {
 async function refresh() {
   if (!item) return;
   state = await load();
+  applyTheme(state);
   renderUsage();
 
   const now = Date.now();

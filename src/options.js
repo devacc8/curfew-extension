@@ -1,5 +1,6 @@
 import { load, mutate, onChanged } from "./common/storage.js";
 import { applyI18n, msg } from "./ui/i18n.js";
+import { applyTheme } from "./ui/theme.js";
 import { grantItem, syncAccessFlags } from "./ui/access.js";
 import { addSite } from "./ui/site-form.js";
 import { encodeExport, decodeExport } from "./common/transfer.js";
@@ -21,6 +22,7 @@ const els = {
   protectMsg: /** @type {HTMLElement} */ (document.getElementById("protectMsg")),
   passesLimit: /** @type {HTMLInputElement} */ (document.getElementById("passesLimit")),
   search: /** @type {HTMLInputElement} */ (document.getElementById("siteSearch")),
+  themeChoice: /** @type {HTMLSelectElement} */ (document.getElementById("themeChoice")),
 };
 
 let siteFilter = "";
@@ -150,6 +152,8 @@ function buildRow(item) {
 
 async function render() {
   const state = await load();
+  applyTheme(state);
+  els.themeChoice.value = state.settings.theme ?? "system";
   const snapshot = JSON.stringify([state.config, state.runtime, state.usage]);
   if (snapshot === lastPainted) return;
   lastPainted = snapshot;
@@ -192,6 +196,10 @@ els.master.addEventListener("change", async () => {
     return;
   }
   await mutate("master.set", { value: true });
+});
+
+els.themeChoice.addEventListener("change", async () => {
+  await mutate("theme.set", { value: els.themeChoice.value });
 });
 
 els.add.addEventListener("click", async () => {

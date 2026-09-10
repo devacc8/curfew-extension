@@ -132,3 +132,13 @@ test("item.update patches the anti-scroll fields too", () => {
   applyOp(state, "item.update", { id, fields: { sessionLimitMinutes: -4 } });
   assert.equal(state.config.items[0].sessionLimitMinutes, 0);
 });
+
+test("theme.set accepts the two explicit choices and defaults to system", () => {
+  const state = base();
+  assert.deepEqual(applyOp(state, "theme.set", { value: "light" }), { value: "light" });
+  assert.equal(state.settings.theme, "light");
+  applyOp(state, "theme.set", { value: "dark" });
+  assert.equal(state.settings.theme, "dark");
+  applyOp(state, "theme.set", { value: "neon" });
+  assert.equal(state.settings.theme, "system");
+});

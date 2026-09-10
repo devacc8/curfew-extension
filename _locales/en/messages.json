@@ -232,5 +232,17 @@
   },
   "saveFailed": {
     "message": "Could not save — check the extension's service worker console"
+  },
+  "themeLabel": {
+    "message": "Appearance"
+  },
+  "themeSystem": {
+    "message": "Follow system"
+  },
+  "themeDark": {
+    "message": "Dark"
+  },
+  "themeLight": {
+    "message": "Light"
   }
 }

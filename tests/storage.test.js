@@ -413,3 +413,10 @@ test("update refuses to downgrade a document from a newer build", async () => {
   assert.equal(stored.schema, 99, "the newer document was rewritten");
   assert.equal(stored.config.items.length, 1);
 });
+
+test("the theme choice is stored and sanitized", () => {
+  assert.equal(migrate({}).settings.theme, "system");
+  assert.equal(migrate({ schema: 2, settings: { theme: "light" } }).settings.theme, "light");
+  assert.equal(migrate({ schema: 2, settings: { theme: "dark" } }).settings.theme, "dark");
+  assert.equal(migrate({ schema: 2, settings: { theme: "neon" } }).settings.theme, "system");
+});
