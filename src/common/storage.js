@@ -315,6 +315,11 @@ export function migrate(state) {
 }
 
 /** Load state, seeding/migrating on disk only when the shape changes. */
+/** Last read that needed no write, keyed by the raw document. Pages call
+ *  `load()` several times per open; re-migrating the same bytes is waste. */
+let cachedRawJson = null;
+let cachedState = null;
+
 export async function load() {
   let box;
   try {
@@ -330,6 +335,9 @@ export async function load() {
   // Documents of this schema live under KEY; anything older is read from the
   // legacy key exactly once (that is where a pre-rename build left it) and
   // carried forward. The legacy key is never written again.
+  const rawJson = JSON.stringify(box[KEY] ?? null);
+  if (rawJson === cachedRawJson && cachedState !== null) return cachedState;
+
   const fromLegacy = box[KEY] === undefined && box[LEGACY_KEY] !== undefined;
   const raw = fromLegacy ? box[LEGACY_KEY] : box[KEY];
   if (fromLegacy) {
@@ -369,7 +377,7 @@ export async function load() {
     return raw ?? defaults();
   }
   writable = true;
-  if (!raw || JSON.stringify(raw) !== JSON.stringify(state)) {
+  if (!raw || rawJson !== JSON.stringify(state)) {
     // Insurance: keep the pre-migration document, so a bad migration is
     // recoverable instead of final.
     if (raw && Number(raw.schema) < SCHEMA) {
@@ -382,6 +390,8 @@ export async function load() {
     }
     await chrome.storage.local.set({ [KEY]: state });
   }
+  cachedRawJson = JSON.stringify(state);
+  cachedState = state;
   return state;
 }
 
@@ -393,6 +403,10 @@ export async function update(mutator, preloaded) {
   const state = preloaded ?? (await load());
   const before = JSON.stringify(state);
   mutator(state);
+  // Any mutation invalidates the memoized read; a refused write must never be
+  // served back as if it had happened.
+  cachedRawJson = null;
+  cachedState = null;
   if (JSON.stringify(state) !== before) {
     if (!writable) {
       // Same guard as load(): never write back a document this build could
