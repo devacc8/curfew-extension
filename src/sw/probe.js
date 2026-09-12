@@ -6,7 +6,7 @@ import { IDLE_SECONDS } from "../common/limits.js";
 /**
  * What is the user looking at right now?
  * Counting requires the tab to be active in a focused window and the browser
- * not idle — an ungranted host is invisible, so it can never be counted.
+ * not idle. An ungranted host is invisible, so it can never be counted.
  * @returns {Promise<{ host: string | null, canCount: boolean }>}
  */
 export async function probeEnv() {

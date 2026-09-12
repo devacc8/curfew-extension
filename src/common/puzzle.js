@@ -58,7 +58,7 @@ export function shuffledBoard(moves = 80, rng = Math.random) {
   for (let i = 0; i < moves; i++) {
     const tile = randomMove(board, previous, rng);
     // The tile just moved sits where the blank was, so it is exactly the one
-    // that would undo this move — excluding it keeps the walk well mixed.
+    // that would undo this move; excluding it keeps the walk well mixed.
     // (This used to read `board[blankIndex(board)]`, which is always 0, so
     // the filter was dead and ~1/3 of the moves were immediate undos.)
     previous = tile;

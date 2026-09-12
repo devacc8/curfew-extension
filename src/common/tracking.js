@@ -12,7 +12,7 @@ import { pruneDays } from "./transfer.js";
 /**
  * The tracking side of the state document, pure and clock-injected: the
  * service worker owns the browser APIs and calls these with Date.now(), so a
- * whole day — worker deaths, ticks, midnight, tab switches — is simulated in
+ * whole day (worker deaths, ticks, midnight, tab switches) is simulated in
  * tests without a browser.
  *
  * Every entry point mutates the state it is given (the `update()` mutator

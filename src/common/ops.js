@@ -16,7 +16,7 @@ const access = (value) => (value === "granted" ? "granted" : "denied");
  * Pages never touch storage directly: they send `{type: "state:apply", op,
  * payload}` and the service worker applies it inside its serialized mutation
  * queue. That is what makes a page write unable to clobber a concurrent time
- * credit with a stale snapshot — the storage API has no transactions.
+ * credit with a stale snapshot: the storage API has no transactions.
  */
 const OPS = {
   /** Create or update an item by pattern; returns the identity the page needs. */
@@ -57,7 +57,7 @@ const OPS = {
   },
 
   /** Apply the permissions probe for many items at once. A `null` grant is
-   *  "unknown" (the probe threw) and keeps the previous flag — forcing
+   *  "unknown" (the probe threw) and keeps the previous flag, since forcing
    *  denied would silently disable tracking and enforcement. */
   "item.accessBatch": (state, { entries }) => {
     let changed = 0;

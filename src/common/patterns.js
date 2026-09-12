@@ -3,7 +3,7 @@ const HOST_RE = new RegExp(`^${LABEL}(?:\\.${LABEL})+$`);
 
 /**
  * Grammar: hostname with optional leading "*."; no port/path in storage.
- * Input is tolerant: pasted URLs are normalized — scheme ("https://",
+ * Input is tolerant: pasted URLs are normalized. The scheme ("https://",
  * "*://"), path/query/hash and a trailing ":port" are stripped.
  * Returns { ok, pattern: {wildcard, host}, error }.
  */

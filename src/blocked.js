@@ -87,7 +87,7 @@ async function init() {
 
 /** Re-evaluate the curfew against fresh state. When the wall is stale (a
  *  new day started, limits refreshed, window lifted) the domain becomes a
- *  clickable way out — no address retyping needed. */
+ *  clickable way out, so no address retyping is needed. */
 async function refresh() {
   if (!item) return;
   state = await load();
@@ -108,7 +108,7 @@ async function refresh() {
     stayEl.hidden = true;
     passesEl.hidden = true;
     // A wall can outlive its rule (the browser restored the tab before the
-    // service worker reconciled at boot). Get out of the user's way — but
+    // service worker reconciled at boot). Get out of the user's way, but
     // ONLY once the enforcement rule is actually gone: navigating while it
     // still exists bounces straight back here, and that ping-pong flickers.
     leaveIfStale();
@@ -138,7 +138,7 @@ async function ruleGone() {
 /**
  * Leave a stale wall, but only when both hold: enforcement now considers the
  * site open AND its DNR rule has been removed. Without the second check the
- * page navigates into a rule that redirects it right back — an endless
+ * page navigates into a rule that redirects it right back, an endless
  * site <-> wall flicker. The page's init flush triggers a reconcile first, so
  * a stale rule is normally gone by the time this runs.
  */

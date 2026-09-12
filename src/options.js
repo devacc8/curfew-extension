@@ -253,8 +253,8 @@ async function importData(file) {
     els.dataStatus.textContent = msg("importFailed");
     return;
   }
-  // Importing is a permissive change — it can rewrite every budget and even
-  // switch protection off — so it sits behind the same challenge as the
+  // Importing is a permissive change: it can rewrite every budget and even
+  // switch protection off, so it sits behind the same challenge as the
   // other relaxations (README "Willpower Protection"). The file is only
   // parsed before the gate; nothing is written until it is solved.
   const done = await guarded(async () => {

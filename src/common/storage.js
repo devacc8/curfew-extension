@@ -12,7 +12,7 @@ const LEGACY_KEY = "curfew";
 
 /** Documents live under a VERSION-SCOPED key. A page left over from an older
  *  build keeps reading and writing `curfew` (its own idea of the document) and
- *  can no longer fight the current build for the same bytes — which is exactly
+ *  can no longer fight the current build for the same bytes, which is exactly
  *  how a field install had its sites, passes and protection reset over and
  *  over: a stale page from the pre-rename build rewrote the whole document on
  *  every one of its renders. */
@@ -133,7 +133,7 @@ const MIGRATIONS = {
 
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-/** Finite number or the fallback — the shape guard for every numeric field. */
+/** Finite number or the fallback: the shape guard for every numeric field. */
 function finiteNumber(value, fallback) {
   const n = Number(value);
   return Number.isFinite(n) ? n : fallback;
@@ -231,7 +231,7 @@ function sanitizeItems(raw, settings) {
 
 /**
  * Structural sanitizer: the single trust boundary for anything that reaches
- * the state document — an on-disk profile, an imported file, a hand-edited
+ * the state document: an on-disk profile, an imported file, a hand-edited
  * export. Every consumer indexes these fields without checks (`items` is
  * iterated, `usage.days[day]` is written through, `session` is destructured),
  * so one malformed field would otherwise brick tracking AND enforcement until
@@ -300,7 +300,7 @@ function mergeIntoDefaults(s) {
 /** Resolve any stored/imported shape into the current schema. Pure, exported
  *  for the import pipeline (transfer.js).
  *
- *  A document from a NEWER schema resolves to defaults here — right for an
+ *  A document from a NEWER schema resolves to defaults here: right for an
  *  import (never trust a file from the future), wrong for a live read, which
  *  is why {@link load} handles that case itself and refuses to write.
  *  @param {any} state - any stored/imported shape; runtime checks below are the
@@ -331,7 +331,7 @@ export async function load() {
     box = await chrome.storage.local.get([KEY, LEGACY_KEY]);
   } catch (error) {
     // After an extension reload, orphaned pages fail every chrome.* call
-    // with "Extension context invalidated" — reload instead of dying.
+    // with "Extension context invalidated". Reload instead of dying.
     if (typeof location !== "undefined" && String(error?.message).includes("context invalidated")) {
       location.reload();
     }
@@ -352,7 +352,7 @@ export async function load() {
   // A document written by a NEWER build means this context is stale (an
   // orphaned page from before a reload). Read it, keep it, never rewrite it:
   // resetting it to defaults here destroys the user's sites, history and
-  // passes — a real report, not a theory.
+  // passes: a real report, not a theory.
   if (raw && Number(raw.schema) > SCHEMA) {
     writable = false;
     console.warn("curfew: stored document is newer than this build; leaving it alone");
@@ -402,7 +402,7 @@ export async function load() {
 
 /** Read -> mutate in place -> write when the snapshot changed.
  *  Mutators mutate the state they receive; return values are ignored
- *  (a returned item is NOT a state replacement — that bit us once).
+ *  (a returned item is NOT a state replacement; that bit us once).
  *  Service-worker only: pages must go through {@link mutate}. */
 export async function update(mutator, preloaded) {
   const state = preloaded ?? (await load());

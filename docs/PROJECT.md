@@ -1,7 +1,7 @@
-# Curfew — project doc (product spec & roadmap)
+# Curfew: project doc (product spec & roadmap)
 
 > The working product document. The public landing page lives in
-> [README.md](../README.md); the deep technical design — in
+> [README.md](../README.md); the deep technical design lives in
 > [TECHNICAL_DESIGN.md](TECHNICAL_DESIGN.md).
 > Image paths below resolve from the repo root.
 
@@ -10,7 +10,7 @@ on chosen sites and enforces a **daily budget** per domain. When the budget
 for the day is spent, the site is intercepted and replaced by a calm reminder
 page until the next day.
 
-Working name: **Curfew** (alternatives if ever needed: Recess, Curb — see
+Working name: **Curfew** (alternatives if ever needed: Recess, Curb; see
 §9). Target order: use it yourself → prove the value → publish to the
 Chrome Web Store.
 
@@ -27,11 +27,11 @@ Willpower Protection challenge.
 ## 1. Why
 
 "Block the whole site" tools (blocklist approach) are too blunt: YouTube is
-needed for study, X for work — the problem is the *infinite scroll*, not the
+needed for study, X for work. The problem is the *infinite scroll*, not the
 site. "Screen time" dashboards show you wasted 3 hours but don't stop you.
 
 Curfew combines both sides: **visibility** (what actually took time) and
-**enforcement** (a hard wall after the budget is spent) — for the sites YOU
+**enforcement** (a hard wall after the budget is spent), for the sites YOU
 choose, with budgets YOU set.
 
 ## 2. Core idea
@@ -43,29 +43,29 @@ budget.
 
 - **Positivity is structural**: a curfew does not say "never", it says "not
   now". After the wall, the site comes back tomorrow (or on your reset rule).
-- **Local only**: usage, budgets, config — all in `chrome.storage.local`.
+- **Local only**: usage, budgets, config are all in `chrome.storage.local`.
   No accounts, no sync, no telemetry, no server, no remote code. This is
   also what a Web Store privacy policy can say in one sentence.
 - **Privilege-minimal**: at install time the browser shows zero warnings
   and zero surprises; the extension sees URLs only on sites you explicitly
-  grant it — one prompt per site, never a blanket `<all_urls>` (see §4.3).
+  grant it: one prompt per site, never a blanket `<all_urls>` (see §4.3).
 
-## 3. Features (v1 — the build target)
+## 3. Features (v1, the build target)
 
 ### 3.1 Quotas and budgets
 - Per-domain **daily budget** in minutes (default 30m, editable).
 - Patterns: exact domain (`x.com`), subdomains (`*.reddit.com`), optional
-  path rules (`github.com/hm...` — v1 keeps it domain-level; paths are a
+  path rules (`github.com/hm...`: v1 keeps it domain-level; paths are a
   roadmap item). Grammar is defined once in `common/patterns.js` and
   tested: `example.com` = that host only; `*.example.com` = the domain
   AND all subdomains. Our matcher is the single source of truth; its
   mapping onto permission prompts (match-patterns) and DNR conditions
   is specified in the tech doc (§5.2, §9.3).
 - Adding a site triggers a per-site permission prompt (§4.3). A declined
-  grant keeps the item in config but marks it "no access" — nothing is
+  grant keeps the item in config but marks it "no access". Nothing is
   tracked until granted.
 - Per-item `enabled` toggle + global master switch (pause all budgets).
-- Budget breaks: not needed (see §3.4 — the blocker is per-domain, not
+- Budget breaks: not needed (see §3.4: the blocker is per-domain, not
   global).
 
 ### 3.2 Time tracking
@@ -74,7 +74,7 @@ budget.
 - Counted per day, day boundary = local midnight (DOW-aware reset is a
   roadmap item).
 - Grace: the first 10 seconds on a site do not count (accidental
-  navigation) — configurable, default ON.
+  navigation), configurable, default ON.
 
 ### 3.3 Blocking
 - When the budget is exhausted → the tab is redirected to the **Curfew
@@ -85,28 +85,28 @@ budget.
   of the site, browser-enforced even when the service worker is asleep.
 - Redirect is non-negotiable for the rest of the day (a navigation to the
   same domain bounces back to the Curfew page).
-- **Restore on uninstall/disable**: removing the extension leaves no trace —
+- **Restore on uninstall/disable**: removing the extension leaves no trace,
   no hosts file, no proxy. The JS-based approach keeps the "uninstall =
   fully back to normal" property.
 
 ### 3.4 Daily-usage dashboard
 - Popup: today's total + top-domains (the frontend of tracking);
 - Remaining time per configured site (progress bar);
-- "Block now" (hard block without waiting for the budget) — free;
-- Adding sites: via the form or right-click → "Add this site to Curfew" —
+- "Block now" (hard block without waiting for the budget), free;
+- Adding sites: via the form or right-click → "Add this site to Curfew",
   free;
 - **Protected mode** (optional): instead of a password, RELAXING the rules
-  asks you to solve a challenge first — a multi-term equation with brackets
-  (5-7 terms, random every time, integer answer) or a 15-puzzle: disabling
+  asks you to solve a challenge first (a multi-term equation with brackets,
+  5-7 terms, random every time, integer answer, or a 15-puzzle): disabling
   a site or the app, raising a budget or the passes limit, removes, import.
   **Tightening stays free** (Block now, lower budgets), and so do adding
-  sites and planned 15-minute passes. The friction IS the lock — deliberate
+  sites and planned 15-minute passes. The friction IS the lock, deliberate
   by design.
 - Global daily cap on 15-min passes across all sites (default 3,
   0 = none).
 
 The model is deliberately two-way: either you play by the rules (budget +
-passes), or you consciously opt out (disable the site or the whole app —
+passes), or you consciously opt out (disable the site or the whole app,
 both password-gated). No in-between "allow today" loophole.
 
 ### 3.5 Anti-circumvention posture (honest, not paranoid)
@@ -115,7 +115,7 @@ both password-gated). No in-between "allow today" loophole.
   escape feeds the habit of disabling the extension.
 - The 15-minute window is logged into usage and shown in the popup
   ("you added 15m twice today"). Renaming the site in another tab is
-  visible next day in the dashboard — the dashboard is the real feedback
+  visible next day in the dashboard. The dashboard is the real feedback
   loop.
 - v1 deliberately does NOT block `chrome://` extensions page, devtools,
   incognito, or other browsers. Be honest in the README: this is a habit
@@ -128,7 +128,7 @@ both password-gated). No in-between "allow today" loophole.
 
 ## 4. Architecture (Chrome MV3)
 
-> Deep technical specification — full stack, module contracts, algorithms,
+> Deep technical specification: full stack, module contracts, algorithms,
 > DNR rule lifecycle, testing: **[docs/TECHNICAL_DESIGN.md](docs/TECHNICAL_DESIGN.md)**.
 > Where details differ, the tech doc wins; this section stays the summary.
 
@@ -136,8 +136,8 @@ both password-gated). No in-between "allow today" loophole.
 curfew-extension/
   manifest.json
   docs/                      # technical design doc (see §4 intro)
-  icons/                     (#16/32/48/128 — later, M3)
-  _locales/                  # en, ru — strings only in UI
+  icons/                     (#16/32/48/128, later M3)
+  _locales/                  # en, ru; strings only in UI
   src/
     service-worker.js        # event-driven core (see below)
     blocked.html/.js/.css    # the Curfew page
@@ -159,9 +159,9 @@ SW restarts on events):
 
 | Event | Action |
 |---|---|
-| `tabs.onUpdated` / `onActivated` + `windows.onFocusChanged` | compute current tracked pattern — `tab.url` is visible ONLY for hosts the user granted (browser-enforced); the events themselves need no `tabs` permission |
+| `tabs.onUpdated` / `onActivated` + `windows.onFocusChanged` | compute current tracked pattern. `tab.url` is visible ONLY for hosts the user granted (browser-enforced); the events themselves need no `tabs` permission |
 | `chrome.idle.onStateChanged` (idle 60s) | stop/start counting |
-| `chrome.alarms` (every 5 min) | flush usage; daily reset at local midnight; re-check the still-open tab — if it hit its budget while sitting on it → add block rule + redirect it (covers the "tab was already open" gap) |
+| `chrome.alarms` (every 5 min) | flush usage; daily reset at local midnight; re-check the still-open tab: if it hit its budget while sitting on it → add block rule + redirect it (covers the "tab was already open" gap) |
 | `chrome.permissions` (optional per-site host access) | one prompt per site the user adds (see §4.3) |
 | DNR dynamic rules | budget exhausted → request-level redirect to `blocked.html`; rule removed on reset / "allow rest of day" (see §4.4) |
 
@@ -204,7 +204,7 @@ SW restarts on events):
   definition; a travel across timezones can only shorten the day, and the
   daily reset recomputes).
 
-### 4.3 Permissions ("zero-warning + per-site consent" — the design)
+### 4.3 Permissions ("zero-warning + per-site consent", the design)
 
 Manifest permissions (all SILENT: the browser shows no install warnings):
 
@@ -222,25 +222,25 @@ Manifest permissions (all SILENT: the browser shows no install warnings):
 
 Deliberately NOT present (this is the positioning, verified against
 Chrome docs):
-- no `tabs` — no history/URL visibility as a blanket (url/title/favIcon
-  are only present for hosts the user granted — browser-enforced);
-- no static `host_permissions` / `<all_urls>` — no "read and change all
+- no `tabs`: no history/URL visibility as a blanket (url/title/favIcon
+  are only present for hosts the user granted, browser-enforced);
+- no static `host_permissions` / `<all_urls>`: no "read and change all
   your data" warning, ever;
 - no `webNavigation`, `scripting`, `cookies`, `notifications`,
   `identity`, `unlimitedStorage`.
 
-Per-site consent model — the only way access ever grows:
+Per-site consent model, the only way access ever grows:
 1. User adds a site in popup/options → `chrome.permissions.request`
-   (must come from an extension page with a user gesture — by design)
+   (must come from an extension page with a user gesture, by design)
    for that site's pattern, e.g. `*://*.reddit.com/*`;
 2. Grant = DNR rules for that site activate + `tab.url` becomes readable
-   for that host (and only that host — browser-enforced);
+   for that host (and only that host, browser-enforced);
 3. Deny = item stays in config marked "no access", nothing tracked;
 4. Revoke = chrome://extensions → site access removed → rule removed,
    data for it can stay or be wiped (options toggle).
 
 Note on `chrome.tabs.update`/`reload`/`create`: per the tabs API docs
-these need NO permission at all — so the fallback redirect (and the
+these need NO permission at all, so the fallback redirect (and the
 alarm re-check) require nothing extra.
 
 Onboarding copy: "Curfew sees only the sites you add. Data never leaves
@@ -252,11 +252,11 @@ your browser. Uninstall = gone."
   now"), the service worker adds one dynamic rule:
   `redirect → extensionPath "/src/blocked.html"`, `main_frame`,
   condition mapped from `common/patterns.js` (`||domain/` for wildcard
-  patterns, anchored filter for exact ones — the mapping is pure and
+  patterns, anchored filter for exact ones; the mapping is pure and
   tested). The browser enforces it at the request boundary: no flash of
   the site, no race, works even while the SW is asleep.
 - The rule exists only while the item is "closed": removed on midnight
-  reset and on "allow rest of day". Positivity is structural — the wall
+  reset and on "allow rest of day". Positivity is structural: the wall
   comes down by itself.
 - "Stay anyway" (15-min window, §3.5) is not a DNR hack: the SW owns the
   decision and simply doesn't have the rule installed while the window is
@@ -265,7 +265,7 @@ your browser. Uninstall = gone."
   for DNR redirect to an extension path). It is the ONLY resource
   exposed; it contains local display + bundled JS, no remote anything.
 - Fallback if DNR is ever unusable: `chrome.tabs.update` redirect (no
-  permission needed per tabs API docs; slower, flashy — not the default).
+  permission needed per tabs API docs; slower and flashy, not the default).
 - Known gap, documented: in-page SPA routing (site-internal path
   changes) does not fire a network request, so DNR never sees it. Before
   the budget that's irrelevant; after it, the still-open tab is caught
@@ -290,20 +290,20 @@ v1 = M0..M2 as the personal product; M3 once you are happy.
    Rules are read from storage at decision time; the blocked page is
    served from the extension itself (`chrome.runtime.getURL`), never a
    remote page.
-2. **No build step.** Vanilla JS. Small codebase (~1.5-2k LOC total) —
+2. **No build step.** Vanilla JS. Small codebase (~1.5-2k LOC total). It
    can be reviewed by a human in one sitting; 5 years later it still
    builds with nothing.
 3. **Pure logic separate from chrome APIs** (`common/*` has no chrome
-   import) — `node --test` covers time/day/pattern/budget decision; a
+   import): `node --test` covers time/day/pattern/budget decision; a
    DOM/db harness is not needed for v1.
 4. **Honesty surfaces**: the "stay anyway" button, the pass counter,
    the "extension can be disabled by design" note in the README. No
    fake-hard-to-get-around; the feedback loop is the product.
 5. **New features only if they survive the "would I still use this in a
-   year" test.** No gamification, no streaks, no notifications — those
+   year" test.** No gamification, no streaks, no notifications: those
    become the distraction.
 6. **No network layer, ever.** No `fetch`, no XHR, no external scripts
-   (default MV3 CSP blocks remote code anyway — keep it that way), no
+   (default MV3 CSP blocks remote code anyway; keep it that way), no
    update polls, no error reporting. The only "bytes out" in the whole
    extension is the user-initiated export file.
 
@@ -314,7 +314,7 @@ v1 = M0..M2 as the personal product; M3 once you are happy.
 - Data lives in `chrome.storage.local` until you export/import manually;
   no permission asks for anything else while you use it.
 - At install: zero browser warnings. The extension can access a site
-  only after you add it and agree to the prompt (see §4.3) — the whole
+  only after you add it and agree to the prompt (see §4.3). The whole
   permission surface is visible in that prompt and revocable in
   chrome://extensions.
 - Uninstalling deletes everything (the extension has no external copy).
@@ -325,8 +325,8 @@ v1 = M0..M2 as the personal product; M3 once you are happy.
   dated; we take the *semantics* (daily per-site quota), improve the
   dashboard and honesty surfaces.
 - **Detox-Extension** (Apache-2.0): dashboard layout reference; we differ
-  on scope (no YouTube/IG feed surgery in v1 — that is 2x the surface).
-- **WasteNoTime** (source no longer public): the cautionary tale —
+  on scope (no YouTube/IG feed surgery in v1; that is 2x the surface).
+- **WasteNoTime** (source no longer public): the cautionary tale of
   a quota tool whose source disappeared. Our repo stays public.
 - **HabitLab** (GPL-3.0, Stanford): the "interventions" idea; not a
   direct competitor because the product is an experiment lab.
@@ -335,8 +335,8 @@ v1 = M0..M2 as the personal product; M3 once you are happy.
 
 If `curfew` fails a name check (store / npm scope / GitHub):
 - **Recess** (calmer, "break" flavor);
-- **Curb** (action-flavored, generic word — highest collision risk);
-- **Keep** — verdict: pick one quickly, the extension name inside the
+- **Curb** (action-flavored, generic word, highest collision risk);
+- **Keep**. Verdict: pick one quickly. The extension name inside the
   code is one constant in `manifest.json` and `package.json`.
 
 ## 10. Dev workflow

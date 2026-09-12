@@ -36,21 +36,21 @@ YOU choose, with budgets YOU set. A curfew doesn't say "never". It says
 
 ## Features
 
-- **Daily budgets per site** — `x.com` exactly or `*.reddit.com` with
+- **Daily budgets per site**: `x.com` exactly or `*.reddit.com` with
   subdomains; minutes per day, reset at local midnight
-- **The wall** — when the budget is spent, the site is redirected at the
+- **The wall**: when the budget is spent, the site is redirected at the
   network-request level: no flash of content, works even while the
   extension sleeps
-- **Session limit + cooldown** — cap one unbroken visit (e.g. 10 min), then
+- **Session limit + cooldown**: cap one unbroken visit (e.g. 10 min), then
   the site takes a break (e.g. 5 min). The infinite scroll, interrupted
-- **Stay anyway, honestly** — 15-minute passes exist on purpose, and every
+- **Stay anyway, honestly**: 15-minute passes exist on purpose, and every
   one of them is counted and shown in the dashboard
-- **Willpower Protection** — optional mode where relaxing the rules asks
+- **Willpower Protection**: optional mode where relaxing the rules asks
   you to solve a challenge first: an equation or the 15-puzzle. The
   friction IS the lock
-- **Active time only** — idle (60 s), unfocused windows and accidental
+- **Active time only**: idle (60 s), unfocused windows and accidental
   hops don't count
-- **Local only** — no accounts, no sync, no analytics, no external calls.
+- **Local only**: no accounts, no sync, no analytics, no external calls.
   Uninstalling deletes everything
 
 <img src="docs/screenshots/puzzle.png" alt="Willpower Protection: the 15-puzzle challenge" width="100%">
@@ -68,13 +68,13 @@ YOU choose, with budgets YOU set. A curfew doesn't say "never". It says
 
 ## How it works
 
-1. **Add a site** — right-click any page → *"Add this site to Curfew"*, or
+1. **Add a site**: right-click any page → *"Add this site to Curfew"*, or
    type a domain. Chrome asks for access to that site, and only that site
-2. **Set a budget** — e.g. 30 min/day. Time counts only while you are
+2. **Set a budget**: e.g. 30 min/day. Time counts only while you are
    actually looking at the site
-3. **Hit zero** — a request-level rule intercepts the site and shows the
+3. **Hit zero**: a request-level rule intercepts the site and shows the
    wall: time spent today, passes left
-4. **Stay anyway?** — 15-minute passes, counted honestly in the dashboard.
+4. **Stay anyway?** 15-minute passes, counted honestly in the dashboard.
    Or wait: the wall comes down by itself at midnight
 
 At install the browser shows **zero warnings**: the extension gets access
@@ -86,14 +86,16 @@ Optional mode for the hard days. When enabled, every permissive change (staying 
 disabling a budget, removing a site, importing) asks you to **solve a
 challenge** first:
 
-- **Equation** — something like `(79) × 7 + 77 + 61 + 65 = ?`: 5–7 terms,
+- **Equation**: something like `(79) × 7 + 77 + 61 + 65 = ?`, with 5-7 terms,
   brackets, two-digit numbers, a fresh one every attempt
-- **15-puzzle** — the classic sliding game, always solvable
+- **15-puzzle**: the classic sliding game, always solvable
 
 You can't open a closed site on a whim anymore. You'll have to *decide* to.
 Adding sites and blocking stay free.
 
 ## Privacy
+
+The full policy, the same text the Chrome Web Store listing links to: **[PRIVACY.md](PRIVACY.md)**.
 
 - No data leaves the browser. No accounts, no sync, no analytics, no error
   reporting, no remote code
@@ -134,9 +136,9 @@ calls, web-accessible surface) are enforced by tests as well.
 
 Deep design documents:
 
-- [Technical design](docs/TECHNICAL_DESIGN.md) — architecture, algorithms,
+- [Technical design](docs/TECHNICAL_DESIGN.md): architecture, algorithms,
   decision log
-- [Project doc](docs/PROJECT.md) — product spec, milestones, roadmap
+- [Project doc](docs/PROJECT.md): product spec, milestones, roadmap
 
 ## License
 

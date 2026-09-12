@@ -287,7 +287,7 @@ applyI18n();
 render();
 // Credit whatever the SW has not flushed yet (its tick is 5 min), then
 // repaint: without this the dashboard shows a frozen "1 min left" while
-// the wall is actually due — the freeze the users kept reporting. The
+// the wall is actually due, the freeze the users kept reporting. The
 // access-flag write goes through the SW queue too, so it cannot clobber
 // the credit; the chain just keeps the paint after both.
 send("flush")

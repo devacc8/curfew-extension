@@ -29,7 +29,7 @@ export function createReconciler() {
    *  its rule is gone instead of polling for it. */
   function announceRulesChanged() {
     chrome.runtime.sendMessage({ type: "rules:changed" }).catch(() => {
-      // No listener (no wall open) — the normal case.
+      // No listener (no wall open): the normal case.
     });
   }
 

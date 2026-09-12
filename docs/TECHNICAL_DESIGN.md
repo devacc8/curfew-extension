@@ -1,8 +1,8 @@
-# Curfew — Technical Design
+# Curfew: Technical Design
 
 | | |
 |---|---|
-| Status | Draft → implementation target for M0–M2 |
+| Status | Draft → implementation target for M0-M2 |
 | Supersedes | PROJECT §4 details (PROJECT stays the working product doc + summary) |
 | Privacy posture | Zero install warnings · per-site consent · zero network · local-only |
 | Stack | Vanilla ES2022 modules on Chrome MV3 · no build step · zero npm deps |
@@ -32,15 +32,15 @@
 
 **Goals (technical):**
 
-- G1 — Meter active time on user-configured patterns with no wrong counting
+- G1: Meter active time on user-configured patterns with no wrong counting
   (idle, unfocused window, accidental hops must not count).
-- G2 — Enforce the budget at the **network request level**, so the wall works
+- G2: Enforce the budget at the **network request level**, so the wall works
   even when the service worker is asleep and without a flash of the site.
-- G3 — Install with **zero browser warnings**; grow access only via explicit
+- G3: Install with **zero browser warnings**; grow access only via explicit
   per-site user consent; stay fully revocable.
-- G4 — Every nontrivial decision (day key, pattern matching, budget state)
+- G4: Every nontrivial decision (day key, pattern matching, budget state)
   lives in pure, dependency-free modules covered by `node --test`.
-- G5 — The whole codebase stays readable in one sitting (~1.5–2k LOC), with
+- G5: The whole codebase stays readable in one sitting (~1.5-2k LOC), with
   no build step and no dependencies.
 
 **Non-goals (v1):** path-level rules, incognito coverage, other browsers,
@@ -56,7 +56,7 @@ blocking `chrome://` pages, any server-side component. See PROJECT §3.5 and
 | Platform | Chrome MV3, `minimum_chrome_version: "121"` | DNR dynamic rules mature; 5k dynamic-rule floor is plenty; modern SW behavior | No Chromium < 121 support |
 | Language | Vanilla JavaScript, ES2022 modules | Auditability + longevity (PROJECT principle 2); types via JSDoc where they pay off | No TS compiler, no polyfills |
 | Service worker | `background.type: "module"` | ES imports of `common/*` directly | Top-level event registration only (no async setup before listeners) |
-| Storage | `chrome.storage.local`, one versioned key | Atomic read-modify-write; trivial export | 10 MB quota — fine for 60-day rolling usage |
+| Storage | `chrome.storage.local`, one versioned key | Atomic read-modify-write; trivial export | 10 MB quota, fine for 60-day rolling usage |
 | Enforcement | `declarativeNetRequest` **dynamic** rules, `redirect → extensionPath` | Browser-enforced at request boundary; works while SW is dead | `blocked.html` must be web-accessible |
 | Time semantics | `chrome.idle` (60 s) + tab/window events | Precise "active time" definition | `idle` permission (silent) |
 | Periodic work | `chrome.alarms`: 5-min `tick` + one-shot `midnight` | SW-survivable scheduling; exact local-midnight rollover | minimum period applies (30 s since Chrome 120; we use 5 min) |
@@ -65,7 +65,7 @@ blocking `chrome://` pages, any server-side component. See PROJECT §3.5 and
 | i18n | `chrome.i18n`, `_locales/{en,ru}` | Store-ready, strings centralized | All UI strings via `getMessage` |
 | Tests | `node --test` (built-in runner), Node ≥ 20 | Zero deps; stable test harness | Only pure modules are unit-tested |
 | Tooling | ESLint flat config + `tsc --noEmit` over JSDoc (dev-only; no bundler, nothing ships in the package) | Principle 2 holds: types are checked, never compiled | Discipline: lint + typecheck + invariant tests (§12.3) |
-| Distribution | zip of the repo (M3), Chrome Web Store | — | Store review: §11.3 checklist |
+| Distribution | zip of the repo (M3), Chrome Web Store | n/a | Store review: §11.3 checklist |
 
 **Explicitly banned (invariant-tested, §12.3):** `fetch`, `XMLHttpRequest`,
 `WebSocket`, remote `<script>`, remote `import`, analytics, error reporting.
@@ -168,9 +168,9 @@ Key-by-key rationale:
 | Key | Rationale |
 |---|---|
 | `permissions` | All five are silent (no install warning). No `tabs`, no static `host_permissions`, no `webNavigation`/`scripting`/`cookies`/`notifications`. |
-| `declarativeNetRequestWithHostAccess` | Chosen over `declarativeNetRequest` (the latter triggers an install warning for implicit block-anywhere power). With host-access variant, rules act only on hosts the user granted — which is exactly our consent model. |
+| `declarativeNetRequestWithHostAccess` | Chosen over `declarativeNetRequest` (the latter triggers an install warning for implicit block-anywhere power). With host-access variant, rules act only on hosts the user granted, which is exactly our consent model. |
 | `optional_host_permissions: ["*://*/*"]` | Declares *nothing granted*, only *what may be asked*. Each `permissions.request` shows its own per-site prompt. Nothing at install. |
-| `contextMenus` | Silent. Powers the right-click "Add this site to Curfew" — the reliable way to learn the current site. |
+| `contextMenus` | Silent. Powers the right-click "Add this site to Curfew", the reliable way to learn the current site. |
 | `incognito: "not_allowed"` | Privacy posture: the extension literally cannot run or see incognito. Trade-off (incognito = escape hatch) is already accepted in PROJECT §3.5. |
 | `web_accessible_resources` | Required for DNR redirect to an extension path. Exactly one resource exposed; it ships bundled JS only, no remote anything. |
 | no `declarative_net_request` key | We use dynamic rules only; that manifest key is for static rulesets. |
@@ -183,7 +183,7 @@ All modules are pure ES modules: no `chrome.*`, no DOM, no I/O. Deterministic
 in → deterministic out. `storage.js` is the sole exception (thin async adapter
 over `chrome.storage.local`), and it is tested against a shim.
 
-### 5.1 `time.js` — calendar semantics
+### 5.1 `time.js`: calendar semantics
 
 ```js
 /** Local calendar day key, "YYYY-MM-DD". */
@@ -201,9 +201,9 @@ export function capMs(ms, maxMs)
 
 DST/timezone: day key is derived from local wall-clock at call time; the
 midnight alarm is rescheduled after every fire, so DST shifts self-correct.
-Travel across timezones can only shorten "today" — accepted in PROJECT §4.2.
+Travel across timezones can only shorten "today". This is accepted in PROJECT §4.2.
 
-### 5.2 `patterns.js` — the pattern grammar (single source of truth)
+### 5.2 `patterns.js`: the pattern grammar (single source of truth)
 
 Grammar (PROJECT §3.1): hostname with optional leading `*.`; no port/path.
 
@@ -231,9 +231,9 @@ Why two mappings differ: browser match-patterns and DNR `urlFilter` anchors
 have different subdomain semantics; `patterns.js` normalizes both so that the
 **user-visible grammar** (what the budget covers) is identical for consent
 prompt, tracking, and enforcement. This module carries the densest test
-suite — it is the contract between three Chrome subsystems.
+suite: it is the contract between three Chrome subsystems.
 
-### 5.3 `budget.js` — state decisions
+### 5.3 `budget.js`: state decisions
 
 ```js
 /** "open" | "closed" for an item given today's usage.
@@ -246,10 +246,10 @@ export function transition(state, event, config, nowMs)
 ```
 
 `transition` returns a plain description of effects (`{count: ms} |
-{startGrace} | {discard}`) — the SW interprets it against real APIs. This
+{startGrace} | {discard}`): the SW interprets it against real APIs. This
 keeps the entire state machine unit-testable without chrome mocks.
 
-### 5.4 `storage.js` — the persistence adapter
+### 5.4 `storage.js`: the persistence adapter
 
 ```js
 export async function load()              // -> full state, migrated to current schema
@@ -261,7 +261,7 @@ export function onChanged(handler)        // wraps chrome.storage.onChanged
 **Version-scoped key.** Documents live under `curfew:v<schema>`; the bare
 `curfew` key is read once (that is where every build up to schema 2 left its
 document) and never written again. A page left over from an older build keeps
-reading and writing `curfew` — its own idea of the document — and can no
+reading and writing `curfew` (its own idea of the document) and can no
 longer fight the current build for the same bytes. That is not hypothetical:
 a stale page from the pre-rename build rewrote the whole document on every
 render and reset a field install's sites, passes and protection.
@@ -282,7 +282,7 @@ named op (`common/ops.js`) inside its serialized mutation queue (§8.5). An
 invariant test (§12.3) fails the build if any other `src/` file touches
 `chrome.storage.local` or imports the low-level `update()`.
 
-### 5.5 `theme.css` — one palette, three surfaces
+### 5.5 `theme.css`: one palette, three surfaces
 
 Every colour lives in `src/theme.css` as a custom property (dark by default).
 System is the real default and needs no JavaScript: the
@@ -293,31 +293,31 @@ light-mode user never sees a dark flash. An explicit choice in Settings sets
 The challenge dialogs in `protect.js` reference the same variables instead of
 hardcoded hex, so the equation and the 15-puzzle follow the choice too.
 
-### 5.6 `ops.js` — the mutation vocabulary
+### 5.6 `ops.js`: the mutation vocabulary
 
 `applyOp(state, op, payload)` is the complete set of state mutations, pure
 and unit-tested: `item.add`, `item.update` (enabled / budgetMinutes /
 access only), `item.accessBatch`, `item.remove`, `master.set`,
 `passes.set`, `protection.set`, `state.import` (migrated and pruned by the
-SW, never trusted raw). Each returns a JSON-serializable result — the page
+SW, never trusted raw). Each returns a JSON-serializable result: the page
 gets the created item's id back from `item.add`. Unknown ops throw.
 
-### 5.7 `rules.js` — enforcement projection
+### 5.7 `rules.js`: enforcement projection
 
 ```js
 /** No-rule-means-open, from the enforcement point of view. Precedence:
  *  access-denied -> open; an ACTIVE UNBLOCK WINDOW wins over everything
  *  (the user's explicit "stay anyway" from the wall); then a day override
- *  for TODAY (only "block" is produced by the UI — "allow" is retained
+ *  for TODAY (only "block" is produced by the UI; "allow" is retained
  *  for import compatibility); then the budget decision. */
 export function isOpen(state, item, day, nowMs)
 
-/** The desired set of dynamic DNR rules — pure projection of storage.
+/** The desired set of dynamic DNR rules: pure projection of storage.
  *  blockedPageFor(host) lets the SW inject the domain query (Q1). */
 export function desiredRules(state, { day, nowMs, blockedPageFor })
 ```
 
-### 5.8 `transfer.js` — export/import + retention
+### 5.8 `transfer.js`: export/import + retention
 
 ```js
 /** One-file export: { kind, version, exportedAt, state } (§3.6). */
@@ -331,7 +331,7 @@ export function decodeExport(text)   // -> { ok, state } | { ok: false, error }
 export function pruneDays(state, keep)
 ```
 
-### 5.9 `tracking.js` — the accounting entry points
+### 5.9 `tracking.js`: the accounting entry points
 
 ```js
 /** One environment observation: wake recovery + transition + credit guards. */
@@ -345,7 +345,7 @@ export function applyRollover(state, nowMs, keepDays)
 ```
 
 Clock-injected and pure: the service worker owns the browser APIs and passes
-`Date.now()`, so a whole day — worker deaths, ticks, midnight, tab switches —
+`Date.now()`, so a whole day (worker deaths, ticks, midnight, tab switches)
 is replayed in `tests/tracking.test.js` without a browser. Each entry point
 mutates the document (the `update()` mutator convention) and RETURNS the
 credits that landed, so the tests assert the accounting instead of guessing.
@@ -356,7 +356,7 @@ credits that landed, so the tests assert the accounting instead of guessing.
 
 ### 6.1 Schema v2 (full)
 
-Extends PROJECT §4.2 — this section is authoritative.
+Extends PROJECT §4.2: this section is authoritative.
 
 ```jsonc
 {
@@ -456,7 +456,7 @@ item.access="denied"; remove its DNR rules; keep historical rows
 Rules and mechanics:
 
 - `permissions.request` must be called from an extension page with a user
-  gesture — popup/options are exactly that; this is by design (§4.3 README).
+  gesture: popup/options are exactly that; this is by design (§4.3 README).
   Caveat: whether the popup survives the consent dialog is an open question
   (Q5) with a safe fallback in the options tab.
 
@@ -464,7 +464,7 @@ Rules and mechanics:
 activeTab-invoking gesture. Per the activeTab docs, the permission is
 granted by: executing an action (only when NO popup is declared), executing
 a context menu item, a commands shortcut, or an omnibox suggestion.
-Therefore the popup cannot read the URL of an ungranted tab — ever. The
+Therefore the popup can never read the URL of an ungranted tab. The
 first-time add flow goes through the page context menu instead: the menu
 click delivers `info.pageUrl` to the SW with zero host access, the item is
 created immediately (access "denied"), and the options page opens
@@ -485,7 +485,7 @@ pre-filled (`?add=<host>`) where the user grants access with one click.
 
 Time counts **iff**: the tab is active in its window AND the window is
 focused AND the browser is not idle (≥ 60 s). URL visibility comes from the
-per-site grant — ungranted hosts are invisible and therefore never counted.
+per-site grant: ungranted hosts are invisible and therefore never counted.
 
 ### 8.2 State machine (pure, in `budget.js`)
 
@@ -506,15 +506,15 @@ per-site grant — ungranted hosts are invisible and therefore never counted.
 ```
 
 Grace (default 10 s, configurable) absorbs accidental navigations. Note:
-grace never shields an already-closed site — DNR fires before any page loads
+grace never shields an already-closed site: DNR fires before any page loads
 (§9), so there is nothing to "grace" into.
 
 **Promotion is a first-class step** (`promoteGrace()`): whenever any event
 (tick, same-pattern event, departure, or SW wake) observes a GRACE session
 whose window has already elapsed, it is promoted to COUNTING with
 `lastTickAt` backfilled to the end of the grace window. Promotion runs
-*before* the pattern branch, so a visit that ends before the next tick —
-open a site, read for 40 s, switch away — still credits its post-grace
+*before* the pattern branch, so a visit that ends before the next tick
+(open a site, read for 40 s, switch away) still credits its post-grace
 part instead of being discarded whole. The promoting tick credits that
 remainder in the same step, so the dashboard is truthful on the first
 flush after a short visit.
@@ -539,17 +539,17 @@ The SW can die any time; correctness must not depend on it staying alive.
 - On any wake-up (event or alarm), the SW reads `session`; a GRACE session
   past its window is promoted first (§8.2), then if `phase` is `counting`,
   the SW credits `now − lastTickAt` **capped at 6 min** (tick interval +
-  slack) to the pattern — this absorbs long sleeps without crediting hours
-  of absence — then resumes from `now`.
+  slack) to the pattern (this absorbs long sleeps without crediting hours
+  of absence), then resumes from `now`.
 - **Every credit path is double-guarded** (a real bug: an overnight tick
   once credited 600 unmin capped): `capCredits` caps each credit at 6 min,
   and a credit whose window **spans local midnight is cut at the boundary**
-  (`splitCreditsAtMidnight`) and booked to each day separately — dropping it
+  (`splitCreditsAtMidnight`) and booked to each day separately. Dropping it
   whole (the original rule) lost up to a tick of real usage. Normal ticking
   never spans midnight: each 5-min tick is credited to its own day.
 - Clock jumps backwards: `elapsedMs` clamps at 0.
 - **Browser restart (`runtime.onStartup`)**: pending credit from the
-  previous run is **discarded** — the browser was closed, so crediting it
+  previous run is **discarded**: the browser was closed, so crediting it
   would be phantom time. Tracking resumes fresh (through grace) if a
   restored tab sits on a granted pattern. The 6-min cap applies only to
   SW death *within* a running browser (manual checklist #6 vs #8,
@@ -558,7 +558,7 @@ The SW can die any time; correctness must not depend on it staying alive.
 ### 8.5 Open-tab re-check (the "sat past the budget" gap)
 
 The tick alarm queries the active tabs (URLs readable only for granted
-hosts — exactly the ones we track), recomputes `decide()` per item, and if an
+hosts, exactly the ones we track), recomputes `decide()` per item, and if an
 open tab's budget is exhausted: installs the DNR rule (§9.2) and redirects
 that tab via `chrome.tabs.update` (no permission required per tabs API).
 
@@ -576,11 +576,11 @@ overlapping read-modify-write cycles would otherwise drop a credit.
 
 Two alarms:
 
-- `tick` — `periodInMinutes: 5` — flush, re-check, GC of `runtime`.
-- `midnight` — one-shot `when: nextLocalMidnight()` — closes the day: prune
-  `days` to 60, remove DNR rules for all closed-today items (the site is
-  open again by default), reschedule itself. DST self-corrects because the
-  next value is recomputed from wall clock at every fire.
+- `tick` (`periodInMinutes: 5`): flush, re-check, GC of `runtime`.
+- `midnight` (one-shot `when: nextLocalMidnight()`): closes the day. It
+  prunes `days` to 60, removes DNR rules for all closed-today items (the
+  site is open again by default), and reschedules itself. DST self-corrects
+  because the next value is recomputed from wall clock at every fire.
 
 A lazy rollover also happens in `tick` if the `midnight` alarm was missed
 (e.g. the browser was off at midnight): first flush of a new day key does
@@ -608,7 +608,7 @@ the same work.
 ```
 
 Loop safety: the condition matches only the site's host; `blocked.html` is a
-`chrome-extension://` URL and can never match. No allow-rules are needed —
+`chrome-extension://` URL and can never match. No allow-rules are needed:
 absence of a rule = open site (positivity is structural).
 
 ### 9.2 Lifecycle
@@ -620,11 +620,11 @@ absence of a rule = open site (positivity is structural).
 | pass window opens ("stay anyway") | rule absent while window open; one-shot alarm re-adds at exact expiry; every tick self-heals if the alarm was missed |
 | extension updated/reloaded | `getDynamicRules()` diff vs desired set → reconcile (idempotent, never assume) |
 | worker boot | the same reconcile runs as soon as the worker starts, so a rule left over from the previous browser session is removed BEFORE a restored tab can hit it |
-| a wall that outlived its rule | the wall re-evaluates `closeReason()` on every storage change and leaves by itself — but only once `getDynamicRules()` proves the rule is gone (navigating into a live rule bounces straight back: a site <-> wall flicker). Bounded retry (~12 s), then the clickable link stays. It also states WHY it is up (budget vs cooldown vs "block now") |
+| a wall that outlived its rule | the wall re-evaluates `closeReason()` on every storage change and leaves by itself, but only once `getDynamicRules()` proves the rule is gone (navigating into a live rule bounces straight back: a site <-> wall flicker). Bounded retry (~12 s), then the clickable link stays. It also states WHY it is up (budget vs cooldown vs "block now") |
 
 Reconciliation rule: the SW **always computes the desired rule set from
-storage** and diffs it against `chrome.declarativeNetRequest.getDynamicRules()`
-— storage is the source of truth, rules are a projection. This makes crashes
+storage** and diffs it against `chrome.declarativeNetRequest.getDynamicRules()`.
+Storage is the source of truth; rules are a projection. This makes crashes
 and missed events self-correcting.
 
 ### 9.3 Pattern → condition mapping
@@ -636,7 +636,7 @@ forms tested against tricky hosts (`||x.company/` must not match
 
 ### 9.4 Pass window ("stay anyway")
 
-- Shown on the wall; PASS-through in protected mode — a 15-minute pass is
+- Shown on the wall; PASS-through in protected mode: a 15-minute pass is
   PLANNED use, not a relaxation, so no challenge is asked (the global
   passes limit still applies).
   Pressing sets `runtime.passUntil[pattern] = now + passMinutes`,
@@ -650,14 +650,14 @@ forms tested against tricky hosts (`||x.company/` must not match
   Otherwise "stay anyway" would be dead after "Block now" (a real bug
   found in testing: the counter grew 4× while the wall never lifted).
 - Global passes budget: `config.passesPerDay` (absolute; default 3,
-  0 = none) is checked in the SW (`passesLeftToday`) — permissive
+  0 = none) is checked in the SW (`passesLeftToday`); it is a permissive
   relaxation, so the options input is challenge-gated too.
 - Time spent during the pass window **still counts** and pushes usage
-  past the budget — the overshoot is visible in the dashboard (honesty
+  past the budget: the overshoot is visible in the dashboard (honesty
   surface, PROJECT §3.5).
 - **A pass extends the day's allowance, not just the window.** `isOpen()`
-  enforces the *effective* budget — `budgetMinutes + passes × passMinutes`
-  (`effectiveBudgetSeconds`, via `passBonusSeconds`) — so a burned pass keeps
+  enforces the *effective* budget: `budgetMinutes + passes × passMinutes`
+  (`effectiveBudgetSeconds`, via `passBonusSeconds`). So a burned pass keeps
   the site open after its 15-minute window expires, until the extended
   allowance is actually spent. The popup, the bar and the wall show that same
   effective budget (a real bug: enforcement used the base budget while the
@@ -671,21 +671,21 @@ forms tested against tricky hosts (`||x.company/` must not match
 The daily budget bounds the total, but the stated problem is the *infinite
 scroll*: a single unbroken session. Two per-item numbers address it:
 
-- `sessionLimitMinutes` — a counting session longer than this closes the site;
-- `cooldownMinutes` — how long it stays closed. The session is dropped, so
+- `sessionLimitMinutes`: a counting session longer than this closes the site;
+- `cooldownMinutes`: how long it stays closed. The session is dropped, so
   time stops accruing immediately.
 
 `tracking.js` (`applySessionLimit`) starts the cooldown when the counting
 session has ACCUMULATED its limit of credited time (`session.activeMs`, grown
 by every booked credit), sets `runtime.cooldownUntil[pattern]` and nulls the
-session. Credited time — not wall clock: a machine sleep or a closed browser
+session. Credited time, not wall clock: a machine sleep or a closed browser
 would otherwise look like a 10-minute scroll the moment the user came back. The SW arms a one-shot
 `cooldown:<ruleId>` alarm that re-opens the site at the deadline;
 `pruneRuntime` drops expired entries and `applyRollover` clears them at
 midnight.
 
 Precedence in `isOpen` (§5.6): a cooldown closes the site even under budget,
-and only two things lift it — an explicit pass (the user decided to stay) or
+and only two things lift it: an explicit pass (the user decided to stay) or
 an `allow` day override. Overshoot past the limit is booked honestly rather
 than truncated, so the dashboard still tells the truth. `nextExhaustionAt`
 returns the earlier of budget exhaustion and the session limit, so the same
@@ -710,7 +710,7 @@ blocked page falls back to the generic wall whenever `?domain=` is absent.
 | Options | budgets editor (pattern + minutes + enabled + access badge), export/import, "wipe all data", master switch | storage |
 | Blocked page | domain (when resolvable, §9.5), time spent today, "stay anyway" inside the window with honest counter | storage reads + one message |
 
-Message protocol (SW wakes on `runtime.onMessage` — no persistent
+Message protocol (SW wakes on `runtime.onMessage`; no persistent
 connection):
 
 | Message | From | Effect |
@@ -719,7 +719,7 @@ connection):
 | `{type: "pass:request", itemId}` | blocked page | passes-limit check + policy (§9.4) → open window (no challenge: planned use) |
 | `{type: "flush"}` | any page | force usage flush |
 
-UI refresh: pages subscribe to `storage.onChanged` — no polling, no push
+UI refresh: pages subscribe to `storage.onChanged`; no polling, no push
 from SW needed.
 
 ---
@@ -728,7 +728,7 @@ from SW needed.
 
 ### 11.1 Hard invariants (each enforced by a test, §12.3)
 
-1. Manifest permissions match the allowlist exactly — additions fail CI.
+1. Manifest permissions match the allowlist exactly; additions fail CI.
 2. No `fetch(`/`XMLHttpRequest`/`WebSocket`/remote `import`/remote
    `<script src>` anywhere in the repo.
 3. `web_accessible_resources` exposes exactly `src/blocked.html`.
@@ -756,7 +756,7 @@ from SW needed.
 ### 12.1 Static checks
 
 `npm test` runs, in order: `eslint src tests`; `tsc -p tsconfig.json`
-(`allowJs` + `checkJs` + `noEmit` — the JSDoc annotations and the
+(`allowJs` + `checkJs` + `noEmit`: the JSDoc annotations and the
 `CurfewState` typedef in `common/storage.js` are the schema's executable
 documentation, and nothing is ever emitted); then the unit tests.
 
@@ -771,8 +771,8 @@ documentation, and nothing is ever emitted); then the unit tests.
 
 ### 12.3 Invariant tests (the security posture as code)
 
-`invariants.test.js` reads the repo itself and asserts §11.1 items 1–5.
-These are ordinary `node --test` files — no tooling needed — and they are
+`invariants.test.js` reads the repo itself and asserts §11.1 items 1-5.
+These are ordinary `node --test` files (no tooling needed), and they are
 the mechanism that keeps the "zero network, minimal permissions" promise
 from eroding.
 
@@ -806,8 +806,8 @@ from eroding.
   guarded by a state snapshot (skip when nothing changed) and `onChanged`
   renders are debounced (~100 ms).
 - Write budget: flushes happen on transitions + 5-min tick while a granted
-  site is actively used — worst case a few hundred small writes/day.
-- SW cold start (~50–150 ms) is irrelevant at a 5-minute accounting
+  site is actively used. Worst case a few hundred small writes/day.
+- SW cold start (~50-150 ms) is irrelevant at a 5-minute accounting
   granularity; enforcement does not depend on the SW being alive (§9).
 - Nothing is kept only in memory across events: state lives in storage,
   rules are a reconciled projection (§9.2).
@@ -841,7 +841,7 @@ from eroding.
 | Q2 | Exact-domain `regexFilter` performance on cold start | M1 | Non-issue expected (< 1000 regex rules); revisit only if measurable |
 | Q3 | Firefox port: `optional_host_permissions` equivalents, DNR parity | M4 | Spike deferred; grammar/mappings in `patterns.js` are designed to port |
 | Q4 | Path-level rules (`github.com/...`) | M4 | Requires rethinking consent mapping (one origin per pattern); keep out of v1 |
-| Q5 | Does `permissions.request` survive being called from the popup? (popups close on focus loss — and the consent dialog takes focus) | M1 | Verify in real browser; fallback = consent flow lives in the options tab (a full page cannot blur away), popup deep-links to it |
+| Q5 | Does `permissions.request` survive being called from the popup? (popups close on focus loss, and the consent dialog takes focus) | M1 | Verify in real browser; fallback = consent flow lives in the options tab (a full page cannot blur away), popup deep-links to it |
 
 ---
 
@@ -850,6 +850,6 @@ from eroding.
 | Milestone | Sections of this doc |
 |---|---|
 | M0 skeleton | §3, §4, §6, §7, §12.3 (invariants from day one) |
-| M1 tracker + quota + interstitial | §5, §8, §9, §12.4 (scenarios 1–6, 10) |
-| M2 dashboard + export/import | §6, §10, §12.4 (7–9) |
+| M1 tracker + quota + interstitial | §5, §8, §9, §12.4 (scenarios 1-6, 10) |
+| M2 dashboard + export/import | §6, §10, §12.4 (7-9) |
 | M3 store package | §11.3, PROJECT §7 |

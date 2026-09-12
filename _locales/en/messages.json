@@ -27,7 +27,7 @@
     "message": "min/day"
   },
   "invalidPattern": {
-    "message": "Enter a domain like x.com or *.x.com — wildcards are allowed, https:// is not needed."
+    "message": "Enter a domain like x.com or *.x.com. Wildcards are allowed; https:// is not needed."
   },
   "contextAddSite": {
     "message": "Add this site to Curfew"
@@ -165,7 +165,7 @@
     "message": "Answer"
   },
   "challengeWrong": {
-    "message": "Wrong — try this one:"
+    "message": "Wrong. Try this one:"
   },
   "puzzleMoves": {
     "message": "Moves"
@@ -192,7 +192,7 @@
     "message": "Grant access to start tracking this site"
   },
   "curfewLifted": {
-    "message": "The curfew was lifted — click the address above to continue."
+    "message": "The curfew was lifted. Click the address above to continue."
   },
   "sessionLimitTitle": {
     "message": "Max continuous session in minutes (0 = off)"
@@ -231,7 +231,7 @@
     "message": "Taking a break"
   },
   "saveFailed": {
-    "message": "Could not save — check the extension's service worker console"
+    "message": "Could not save. Check the extension's service worker console"
   },
   "themeLabel": {
     "message": "Appearance"

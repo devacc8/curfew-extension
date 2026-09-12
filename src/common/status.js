@@ -20,7 +20,7 @@ import {
  * Precedence: access-denied -> open; an ACTIVE PASS WINDOW wins over
  * everything (it is the user's explicit "stay anyway" from the wall); a day
  * override for TODAY ("block" / "allow"); an anti-infinite-scroll COOLDOWN;
- * then the budget — the EFFECTIVE budget, so burned passes extend the
+ * then the budget (the EFFECTIVE budget), so burned passes extend the
  * allowance exactly as the UI promises.
  * @returns {"override" | "cooldown" | "budget" | null}
  */

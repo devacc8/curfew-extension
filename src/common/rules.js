@@ -2,14 +2,14 @@ import { parsePattern, toDnrCondition } from "./patterns.js";
 import { passesLeftToday } from "./budget.js";
 import { closeReason, isOpen } from "./status.js";
 
-// The open/closed decision (and its reason) lives in status.js — one source.
+// The open/closed decision (and its reason) lives in status.js: one source.
 export { closeReason, isOpen };
 
 /**
  * Outcome of a "stay anyway" request. Pure so the SW handler stays a
  * one-liner and the double-burn case is unit-tested:
  *  - already open (live window, allow override, or allowance left): ok, and
- *    NOTHING is burned — a stale wall tab or a double click must not eat a
+ *    NOTHING is burned: a stale wall tab or a double click must not eat a
  *    pass the user did not need;
  *  - no passes left today: refused;
  *  - otherwise: burn exactly one pass.
@@ -55,7 +55,7 @@ export function diffRules(desired, actual) {
 }
 
 /**
- * The desired set of dynamic DNR rules — a pure projection of storage.
+ * The desired set of dynamic DNR rules: a pure projection of storage.
  * The service worker diffs this against getDynamicRules() and reconciles.
  */
 export function desiredRules(state, { day, nowMs, blockedPageFor }) {

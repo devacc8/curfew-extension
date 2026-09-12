@@ -14,7 +14,7 @@ export async function requestAccess(pattern) {
 
 /**
  * Reconcile every item's `access` flag with the real permissions. A probe
- * that THROWS is "unknown" (`granted: null`) and keeps the previous flag —
+ * that THROWS is "unknown" (`granted: null`) and keeps the previous flag, since
  * forcing denied would silently switch off tracking and enforcement.
  */
 export async function syncAccessFlags(state) {

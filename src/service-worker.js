@@ -77,7 +77,7 @@ chrome.contextMenus.onClicked.addListener((info, tab) =>
 /**
  * Reconcile the moment the worker starts. Dynamic rules survive a browser
  * restart, so a tab restored before `onStartup` lands can hit a rule that is
- * no longer wanted — the user sees a wall while the budget still has minutes
+ * no longer wanted: the user sees a wall while the budget still has minutes
  * left. Storage is the source of truth; this makes the projection catch up.
  */
 async function bootReconcile() {

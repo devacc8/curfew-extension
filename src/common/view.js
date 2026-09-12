@@ -29,7 +29,7 @@ export const formatRemaining = (sec, t) => formatClock(sec * 1000, t, { round: "
 /** Totals: nearest minute (a 40 s visit is "1 min", not "0 min"). */
 export const formatDuration = (sec, t) => formatClock(sec * 1000, t, { round: "nearest" });
 
-/** The item status the popup renders — same numbers enforcement uses. */
+/** The item status the popup renders: same numbers enforcement uses. */
 export function rowViewModel(state, item, nowMs) {
   return describeItem(state, item, nowMs);
 }

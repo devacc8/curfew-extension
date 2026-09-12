@@ -1,7 +1,7 @@
 import { dayKey, elapsedMs, capMs, nextLocalMidnight } from "./time.js";
 
 /** Hard ceiling for any single credit: a tick or stop event that arrives
- *  late (sleep, missed alarms, dead SW) may report a huge raw elapsed —
+ *  late (sleep, missed alarms, dead SW) may report a huge raw elapsed;
  *  it is capped so a night can never burn hours of budget. */
 export function capCredits(credits, maxMs) {
   return (credits ?? [])
@@ -89,7 +89,7 @@ export function passBonusSeconds(state, pattern, day, passMinutes) {
 
 /** Effective daily budget for an item: base budget extended by
  *  passMinutes for every pass burned on this pattern today. Passes
- *  extend the allowance — they never pause the accounting. */
+ *  extend the allowance; they never pause the accounting. */
 export function effectiveBudgetSeconds(item, state, day, passMinutes) {
   const base = Math.max(0, (item.budgetMinutes ?? 0) * 60);
   return base + passBonusSeconds(state, item.pattern, day, passMinutes);
@@ -101,7 +101,7 @@ export function passesUsedToday(state, day) {
   return Object.values(passes).reduce((sum, n) => sum + n, 0);
 }
 
-/** Passes left today under the global limit; the limit is absolute —
+/** Passes left today under the global limit; the limit is absolute:
  *  0 means no passes at all. */
 export function passesLeftToday(state, day, limit) {
   const max = Number.isFinite(limit) ? limit : 0;
@@ -142,7 +142,7 @@ export function nextExhaustionAt(state, day, nowMs) {
  * backfilling lastTickAt to the end of the grace window. Pure and exported
  * because the SW's wake recovery needs the same promotion: a visit that
  * outlives its grace window while the worker sleeps would otherwise be
- * discarded whole — the classic "a 40-second visit counted as zero" loss.
+ * discarded whole: the classic "a 40-second visit counted as zero" loss.
  */
 export function promoteGrace(session, config, nowMs) {
   const graceMs = (config?.graceSeconds ?? 0) * 1000;
@@ -158,7 +158,7 @@ export function promoteGrace(session, config, nowMs) {
  * state: null | { pattern, phase: "grace"|"counting", phaseStartedAt, lastTickAt }
  * events: { type: "environment", pattern, canCount } | { type: "tick" }
  * Returns { state, credits: [{ pattern, ms }] }.
- * Invariant: time is credited exactly once — from lastTickAt, never overlapping.
+ * Invariant: time is credited exactly once, from lastTickAt, with no overlap.
  */
 export function transition(state, event, config, nowMs) {
   const credits = [];
