@@ -42,6 +42,10 @@ change, you will solve the puzzle, and the fact that you did is the point: the d
 became deliberate instead of automatic. Adding sites and blocking them stays free, because
 those are the directions that help you.
 
+Call it a prosthetic for willpower. It does not make you disciplined, and it does not
+pretend to. It puts one small piece of structure exactly where the discipline runs out,
+and it comes off when you genuinely decide to take it off.
+
 The rest of the extension is the boring part that makes the lock worth having: real
 budgets, enforced for real.
 
