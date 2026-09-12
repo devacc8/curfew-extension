@@ -100,7 +100,7 @@ test("simulation: several visits in a day sum to their active time", () => {
     { at: 20 * MIN, type: "env", pattern: null, canCount: false },
   ]);
   // 15 minutes on the site, minus one grace window per visit. (Ticks every
-  // 5 minutes, as the alarm does — a longer gap is capped by design.)
+  // 5 minutes, as the alarm does; a longer gap is capped by design.)
   assert.equal(credited, 15 * MIN - 20 * S);
   assert.ok(credited <= 20 * MIN, "credited more than wall clock");
 });

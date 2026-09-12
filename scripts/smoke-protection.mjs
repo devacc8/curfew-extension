@@ -274,7 +274,7 @@ try {
   }
 
   // The "frozen at the last minute" bug: a counting session whose last flush
-  // is 2 min old must be credited when the dashboard/wall flushes on open —
+  // is 2 min old must be credited when the dashboard/wall flushes on open,
   // otherwise the counter sits still and the wall never lands.
   const staleFlush = await page.evaluate(async () => {
     const { STORAGE_KEY } = await import(chrome.runtime.getURL("src/common/storage.js"));
@@ -418,7 +418,7 @@ try {
   }
 
   // A counting session with 1 minute of allowance left must arm a one-shot
-  // "exhaust" alarm for that moment — not wait for the 5-minute tick. The
+  // "exhaust" alarm for that moment, not wait for the 5-minute tick. The
   // page has to sit on a REAL host, or the tracker ends the session the
   // moment it probes an extension page; a loopback server gives us one
   // without touching the network.

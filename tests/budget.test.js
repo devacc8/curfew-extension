@@ -147,7 +147,7 @@ test("transition: tick after grace promotes and credits the post-grace window", 
 test("transition: tick while counting credits the uncredited window", () => {
   const start = transition(null, env("*.x.com", true), CFG, 0).state;
   // The promoting tick credits the 1 s sliver after grace; the next tick
-  // credits the remaining 9 s — 10 s total, nothing lost and nothing doubled.
+  // credits the remaining 9 s, so 10 s total, nothing lost and nothing doubled.
   const promoted = transition(start, { type: "tick" }, CFG, 11 * S);
   assert.deepEqual(promoted.credits, [{ pattern: "*.x.com", ms: 1 * S }]);
   const { state: next, credits } = transition(promoted.state, { type: "tick" }, CFG, 20 * S);

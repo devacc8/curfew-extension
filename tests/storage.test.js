@@ -357,7 +357,7 @@ test("load never overwrites a document from a newer build", async () => {
 
   const state = await load();
 
-  // The stored document is untouched — this is the data-loss guard.
+  // The stored document is untouched: this is the data-loss guard.
   assert.equal(stub.data.get("curfew").schema, 99);
   assert.equal(stub.data.get("curfew").config.items.length, 1);
   // ...and the caller still gets a usable view of it.

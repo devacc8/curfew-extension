@@ -13,7 +13,7 @@ export async function findChrome() {
     const resolved = puppeteer.executablePath();
     if (existsSync(resolved)) return resolved;
   } catch {
-    // not downloaded for the pinned version — fall through to the cache scan
+    // not downloaded for the pinned version, so fall through to the cache scan
   }
   const cacheDir = join(homedir(), ".cache", "puppeteer", "chrome");
   if (existsSync(cacheDir)) {
