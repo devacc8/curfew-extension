@@ -18,3 +18,5 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
+      # The store zip is a release artifact: if packaging breaks, learn it here.
+      - run: npm run package

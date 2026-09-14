@@ -1,6 +1,6 @@
 {
   "name": "curfew-extension",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -8,7 +8,9 @@
     "gen:icons": "node scripts/gen-icons.mjs",
     "test": "npm run lint && npm run typecheck && node --test tests/*.test.js",
     "smoke": "node scripts/smoke-protection.mjs",
+    "package": "node scripts/package.mjs",
     "capture": "node scripts/capture.mjs",
+    "promo": "node scripts/promo.mjs",
     "typecheck": "tsc -p tsconfig.json"
   },
   "engines": {

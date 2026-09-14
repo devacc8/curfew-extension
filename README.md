@@ -154,7 +154,9 @@ select the `curfew-extension` folder.
 ```bash
 npm test          # eslint + tsc --noEmit + unit tests (node --test)
 npm run smoke     # E2E: real Chrome clicks through the protection flows
+npm run package   # build the Chrome Web Store zip into dist/
 npm run capture   # regenerate store screenshots + README demo gif
+npm run promo     # regenerate the store promo tiles
 npm run gen:icons # regenerate icons
 ```
 
@@ -168,6 +170,8 @@ Deep design documents:
 - [Technical design](docs/TECHNICAL_DESIGN.md): architecture, algorithms,
   decision log
 - [Project doc](docs/PROJECT.md): product spec, milestones, roadmap
+- [Store checklist](docs/STORE.md): listing copy, permission justifications,
+  submission steps
 
 ## License
 
