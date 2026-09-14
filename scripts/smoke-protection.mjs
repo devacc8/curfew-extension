@@ -220,6 +220,59 @@ try {
     );
   }
 
+  // The passes-per-day field has its own handler, so it gets its own check:
+  // fewer passes is the restrictive direction and must stay free.
+  const storedPasses = () =>
+    page.evaluate(
+      (key) =>
+        new Promise((res) =>
+          chrome.storage.local.get(key, (d) => res(d[key]?.config?.passesPerDay ?? null))
+        ),
+      STORAGE_KEY
+    );
+  const setPasses = async (value) => {
+    await page.evaluate((text) => {
+      const input = document.querySelector("#passesLimit");
+      input.value = text;
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    }, String(value));
+    await sleep(350);
+  };
+
+  const passesBefore = await storedPasses();
+  await setPasses(1);
+  const fewerPasses = await storedPasses();
+  const fewerDialog = await dialogOpen();
+  report(
+    "reducing the passes per day needs no challenge",
+    passesBefore === 3 && fewerPasses === 1 && !fewerDialog,
+    `before=${passesBefore} after=${fewerPasses} dialog=${fewerDialog}`
+  );
+
+  await setPasses(5);
+  const moreDialog = await dialogOpen();
+  if (!moreDialog) {
+    console.log("FAIL: raising the passes per day did not raise the challenge");
+  } else {
+    const passesText = await page.evaluate(
+      () => document.querySelector("dialog")?.textContent ?? ""
+    );
+    const passesExpr = passesText.match(/([\d\s+\-×:()]+)= \?/)?.[1];
+    const passesAnswer = await page.evaluate((t) => {
+      const mod = import(chrome.runtime.getURL("src/common/equation.js"));
+      return mod.then((m) => m.evaluateExpression(t));
+    }, passesExpr);
+    await page.type("dialog input", String(passesAnswer));
+    await page.keyboard.press("Enter");
+    await sleep(350);
+    const morePasses = await storedPasses();
+    report(
+      "raising the passes per day asks for the challenge and then applies",
+      morePasses === 5,
+      `passes=${morePasses}`
+    );
+  }
+
   // Importing is a permissive change: with protection ON the file picker must
   // raise the challenge BEFORE the document is replaced. Cancel it and the
   // payload must not have landed.
