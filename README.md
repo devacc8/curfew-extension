@@ -66,7 +66,8 @@ What it gates:
 - removing a site from the list
 - importing a config file
 
-What stays free: adding sites, editing patterns, and blocking. The lock only guards the
+What stays free: adding sites, editing patterns, blocking, and tightening a limit (a
+smaller budget, a longer cooldown, a shorter session limit). The lock only guards the
 direction you regret.
 
 <img src="docs/screenshots/puzzle.png" alt="Willpower Protection: the 15-puzzle challenge" width="100%">

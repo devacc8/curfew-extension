@@ -39,7 +39,8 @@ function rejectPattern() {
 /**
  * A compact numeric item field. The permissive direction (a bigger budget, a
  * longer session limit, a SHORTER cooldown) goes behind the challenge; the
- * restrictive direction applies immediately. `relaxes(next)` decides.
+ * restrictive direction, which includes shrinking a budget, applies
+ * immediately. `relaxes(next)` decides which direction the new value is.
  */
 function guardedNumberField({ value, title, unit, relaxes, apply }) {
   const input = document.createElement("input");
@@ -51,11 +52,15 @@ function guardedNumberField({ value, title, unit, relaxes, apply }) {
   input.title = title;
   input.addEventListener("change", async () => {
     const next = Math.max(0, Math.min(1440, Number(input.value) || 0));
+    if (next === value) {
+      input.value = String(value); // no change at all, so never a challenge
+      return;
+    }
     const commit = async () => {
       await apply(next);
       input.value = String(next);
     };
-    if (relaxes(next)) return commit();
+    if (!relaxes(next)) return commit();
     const done = await guarded(commit);
     if (!done) input.value = String(value);
   });
@@ -106,7 +111,7 @@ function buildRow(item) {
     title: msg("cooldownTitle"),
     unit: msg("cooldownUnit"),
     // A SHORTER break is the permissive direction, so it needs the challenge.
-    relaxes: (next) => next <= (item.cooldownMinutes ?? 0),
+    relaxes: (next) => next < (item.cooldownMinutes ?? 0),
     apply: (next) => mutate("item.update", { id: item.id, fields: { cooldownMinutes: next } }),
   });
 

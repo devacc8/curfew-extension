@@ -104,6 +104,122 @@ try {
     after?.protection?.kind === "equation" ? "PASS: protection enabled" : "FAIL: not enabled"
   );
 
+  // Direction of the numeric guards. Shrinking a budget is the restrictive
+  // direction and must go through with no dialog; growing it is the relaxation
+  // and must raise the challenge. Regression: the condition used to be
+  // inverted, so tightening a limit was the thing that cost a solved puzzle.
+  // The cooldown moves the other way (a LONGER break is the restrictive one),
+  // so both meanings are checked here.
+  const guardItem = "budget-guard";
+  const storedField = (field) =>
+    page.evaluate(
+      (key, id, name) =>
+        new Promise((res) =>
+          chrome.storage.local.get(key, (d) =>
+            res(d[key]?.config?.items.find((i) => i.id === id)?.[name] ?? null)
+          )
+        ),
+      STORAGE_KEY,
+      guardItem,
+      field
+    );
+  const dialogOpen = () =>
+    page.evaluate(() => Boolean(document.querySelector("dialog[open]")));
+  /** The row holds three number fields: 0 budget, 1 session limit, 2 cooldown. */
+  const setField = async (index, value) => {
+    await page.evaluate(
+      (i, text) => {
+        const input = document.querySelectorAll("#items li input.budget")[i];
+        input.value = text;
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+      },
+      index,
+      String(value)
+    );
+    await sleep(350);
+  };
+  const report = (label, ok, detail) => {
+    console.log(`${label}: ${detail}`);
+    console.log(
+      ok ? `PASS: ${label}` : `FAIL: ${label} (${detail})`
+    );
+  };
+
+  await page.evaluate(
+    async (key, id) => {
+      const doc = await new Promise((res) => chrome.storage.local.get(key, res));
+      const state = doc[key];
+      state.config.items = [
+        {
+          id,
+          ruleId: 9101,
+          pattern: "example.com",
+          budgetMinutes: 30,
+          sessionLimitMinutes: 60,
+          cooldownMinutes: 5,
+          enabled: true,
+          access: "denied",
+        },
+      ];
+      await new Promise((res) => chrome.storage.local.set({ [key]: state }, res));
+    },
+    STORAGE_KEY,
+    guardItem
+  );
+  await page.reload({ waitUntil: "networkidle0" });
+  await sleep(300);
+
+  await setField(0, 10);
+  const shrunk = await storedField("budgetMinutes");
+  const shrunkDialog = await dialogOpen();
+  report(
+    "shrinking a budget needs no challenge",
+    shrunk === 10 && !shrunkDialog,
+    `budget=${shrunk} dialog=${shrunkDialog}`
+  );
+
+  await setField(2, 30);
+  const longerBreak = await storedField("cooldownMinutes");
+  const breakDialog = await dialogOpen();
+  report(
+    "a longer cooldown needs no challenge",
+    longerBreak === 30 && !breakDialog,
+    `cooldown=${longerBreak} dialog=${breakDialog}`
+  );
+
+  await setField(1, 10);
+  const shorterSession = await storedField("sessionLimitMinutes");
+  const sessionDialog = await dialogOpen();
+  report(
+    "a shorter session limit needs no challenge",
+    shorterSession === 10 && !sessionDialog,
+    `session=${shorterSession} dialog=${sessionDialog}`
+  );
+
+  await setField(0, 90);
+  const raisedDialog = await dialogOpen();
+  if (!raisedDialog) {
+    console.log("FAIL: growing a budget did not raise the challenge");
+  } else {
+    const raisedText = await page.evaluate(
+      () => document.querySelector("dialog")?.textContent ?? ""
+    );
+    const raisedExpr = raisedText.match(/([\d\s+\-×:()]+)= \?/)?.[1];
+    const raisedAnswer = await page.evaluate((t) => {
+      const mod = import(chrome.runtime.getURL("src/common/equation.js"));
+      return mod.then((m) => m.evaluateExpression(t));
+    }, raisedExpr);
+    await page.type("dialog input", String(raisedAnswer));
+    await page.keyboard.press("Enter");
+    await sleep(350);
+    const grown = await storedField("budgetMinutes");
+    report(
+      "growing a budget asks for the challenge and then applies",
+      grown === 90,
+      `budget=${grown}`
+    );
+  }
+
   // Importing is a permissive change: with protection ON the file picker must
   // raise the challenge BEFORE the document is replaced. Cancel it and the
   // payload must not have landed.
