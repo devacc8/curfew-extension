@@ -21,6 +21,12 @@ There are exactly five screenshots, which is the store limit. The sixth file,
 `docs/screenshots/strip.png` (6520x800), is made for the README and is never uploaded: the
 store accepts 1280x800 or 640x400.
 
+Every image the store takes must be a JPEG or a 24-bit PNG with no alpha channel. Chrome
+writes the alpha channel only when a shot actually has transparency, so the rule is easy to
+break without noticing. `npm run capture` and `npm run promo` therefore measure each file
+after writing it (`scripts/png-check.mjs`) and fail loudly on a wrong size or an alpha
+channel instead of producing an upload that the dashboard rejects.
+
 Check the package before uploading:
 
 ```bash

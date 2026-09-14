@@ -9,6 +9,7 @@ import { mkdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { findChrome } from "./chrome-path.mjs";
+import { assertStorePng } from "./png-check.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = join(ROOT, "docs", "promo");
@@ -165,6 +166,9 @@ try {
     }
     await page.screenshot({ path: join(OUT, tile.file) });
     rmSync(tmp);
+    // The store rejects a PNG with an alpha channel, so this is checked rather
+    // than assumed.
+    assertStorePng(join(OUT, tile.file), tile.width, tile.height);
     console.log(`promo: docs/promo/${tile.file} (${tile.width}x${tile.height})`);
   }
 } finally {
