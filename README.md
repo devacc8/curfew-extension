@@ -15,6 +15,7 @@ Local-only. Zero tracking. Zero install warnings.
 
 
 [![CI](https://github.com/devacc8/curfew-extension/actions/workflows/ci.yml/badge.svg)](https://github.com/devacc8/curfew-extension/actions/workflows/ci.yml)
+[![Chrome Web Store](https://img.shields.io/badge/Chrome%20Web%20Store-install-7da2ff.svg)](https://chromewebstore.google.com/detail/curfew/obnikdokealeimpbhfbjhpdmfcgbgcje)
 [![License: MIT](https://img.shields.io/badge/License-MIT-7da2ff.svg)](LICENSE)
 ![Manifest V3](https://img.shields.io/badge/Manifest-V3-7da2ff.svg)
 ![No tracking](https://img.shields.io/badge/tracking-none-7fce95.svg)
@@ -137,6 +138,10 @@ The full policy, the same text the Chrome Web Store listing links to: **[PRIVACY
 
 ## Install
 
+**From the Chrome Web Store:**
+
+[**Install Curfew**](https://chromewebstore.google.com/detail/curfew/obnikdokealeimpbhfbjhpdmfcgbgcje) on Chrome 121 or newer, or any Chromium browser that takes Chrome extensions.
+
 **From source** (Chrome 121+):
 
 ```bash
@@ -147,8 +152,6 @@ npm ci
 
 Then: `chrome://extensions` → Developer mode → **Load unpacked** →
 select the `curfew-extension` folder.
-
-> Chrome Web Store version: coming soon.
 
 ## Development
 

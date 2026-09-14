@@ -1,5 +1,7 @@
 # Chrome Web Store: how to publish
 
+Live listing: https://chromewebstore.google.com/detail/curfew/obnikdokealeimpbhfbjhpdmfcgbgcje
+
 First published version: **1.0.0**. The package builds with one command, and the listing
 copy plus every dashboard answer sits below, ready to paste.
 
