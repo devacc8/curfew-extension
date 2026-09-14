@@ -1,4 +1,4 @@
-/** Arithmetic challenge generator: "х:(у-з)+34" style expressions with
+/** Arithmetic challenge generator: "x:(y-z)+34" style expressions with
  *  5-7 one/two-digit operands, brackets, and a guaranteed non-negative
  *  integer answer. Rendering uses × and : (division). */
 

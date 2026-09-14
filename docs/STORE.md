@@ -1,56 +1,60 @@
-# Chrome Web Store: как выложить
+# Chrome Web Store: how to publish
 
-Версия для первой публикации: **1.0.0**. Пакет собирается одной командой, тексты и
-ответы для дашборда лежат ниже и готовы к копированию.
+First published version: **1.0.0**. The package builds with one command, and the listing
+copy plus every dashboard answer sits below, ready to paste.
 
-## 1. Что уже готово в репозитории
+Everything written to a file in this repository is English, this document included. The two
+blocks marked **RU** are the store copy for the Russian-language listing, so they stay
+Russian on purpose.
 
-| Что | Где | Команда |
+## 1. What the repository already has
+
+| What | Where | Command |
 |---|---|---|
-| ZIP для загрузки | `dist/curfew-extension-1.0.0.zip` | `npm run package` |
-| Политика конфиденциальности | https://devacc8.github.io/curfew-extension/PRIVACY.html | Pages: ветка `main`, папка `/` |
-| Иконка 128x128 | `icons/icon128.png` | `npm run gen:icons` |
-| Скриншоты 1280x800 | `docs/screenshots/popup.png`, `options.png`, `wall.png`, `challenge.png`, `puzzle.png` | `npm run capture` |
-| Промо-тайлы | `docs/promo/small-440x280.png`, `docs/promo/marquee-1400x560.png` | `npm run promo` |
+| ZIP for upload | `dist/curfew-extension-1.0.0.zip` | `npm run package` |
+| Privacy policy | https://devacc8.github.io/curfew-extension/PRIVACY.html | Pages: branch `main`, folder `/` |
+| Icon 128x128 | `icons/icon128.png` | `npm run gen:icons` |
+| Screenshots 1280x800 | `docs/screenshots/popup.png`, `options.png`, `wall.png`, `challenge.png`, `puzzle.png` | `npm run capture` |
+| Promo tiles | `docs/promo/small-440x280.png`, `docs/promo/marquee-1400x560.png` | `npm run promo` |
 
-Скриншотов ровно пять, это лимит стора. Шестой файл `docs/screenshots/strip.png`
-(6520x800) сделан для README и в стор не загружается: там нужен размер 1280x800 или
-640x400.
+There are exactly five screenshots, which is the store limit. The sixth file,
+`docs/screenshots/strip.png` (6520x800), is made for the README and is never uploaded: the
+store accepts 1280x800 or 640x400.
 
-Проверка пакета перед загрузкой:
+Check the package before uploading:
 
 ```bash
-npm test          # линт, типы, 200 unit, инварианты
-npm run smoke     # 14 E2E в headless Chrome
-npm run package   # собирает dist/curfew-extension-1.0.0.zip и печатает sha256
+npm test          # lint, types, 200 unit tests, invariants
+npm run smoke     # 14 E2E checks in headless Chrome
+npm run package   # builds dist/curfew-extension-1.0.0.zip and prints its sha256
 ```
 
-`npm run package` сам отказывается собирать, если в манифесте нет обязательных полей,
-если версия не похожа на версию, если иконки или локали не попали в архив, если в
-исходниках появились сетевые вызовы, если архив больше 4 МБ или в нём больше 200 файлов.
+`npm run package` refuses to build if the manifest is missing required fields, if the
+version does not look like a version, if icons or locales did not make it into the archive,
+if network calls appeared anywhere in the sources, or if the archive is over 4 MB or holds
+more than 200 files.
 
-## 2. Аккаунт разработчика (один раз, руками владельца аккаунта)
+## 2. Developer account (one time, done by hand by the account owner)
 
-1. Открыть https://chrome.google.com/webstore/devconsole и войти Google-аккаунтом.
-2. Заплатить разовый взнос $5. Больше платить нечего, публикация бесплатная.
-3. Включить двухфакторную аутентификацию на этом аккаунте, без неё дашборд не работает.
-4. Заполнить имя издателя (оно публичное) и контактный email, затем подтвердить email.
-   Адрес для контакта указан в конце `PRIVACY.md`.
+1. Open https://chrome.google.com/webstore/devconsole and sign in with a Google account.
+2. Pay the one-time $5 registration fee. Nothing else costs money, publishing is free.
+3. Turn on two-factor authentication for that account, the dashboard does not work without it.
+4. Fill in the publisher name (it is public) and a contact email, then verify the email.
+   The contact address is at the end of `PRIVACY.md`.
 
-## 3. Порядок действий в дашборде
+## 3. Steps in the dashboard
 
-1. **New item**, загрузить `dist/curfew-extension-1.0.0.zip`.
-2. **Store listing**: имя, краткое описание, подробное описание, категория, язык,
-   иконка, скриншоты, промо-тайлы. Тексты в разделе 4.
-3. **Privacy practices**: единственная цель, обоснование каждого разрешения, ответы про
-   данные. Тексты в разделах 5 и 6.
-4. **Distribution**: видимость `Public`, все регионы, бесплатно.
-5. **Test instructions**: необязательное поле, но с ним обзор проходит быстрее. Текст в
-   разделе 7.
-6. **Submit for review**. Первый обзор обычно занимает от одного до трёх рабочих дней,
-   иногда дольше. Статус виден на вкладке обзора, письмо придёт на контактный email.
+1. **New item**, then upload `dist/curfew-extension-1.0.0.zip`.
+2. **Store listing**: name, short description, detailed description, category, language,
+   icon, screenshots, promo tiles. The copy is in section 4.
+3. **Privacy practices**: single purpose, a justification per permission, and the data
+   answers. The copy is in sections 5 and 6.
+4. **Distribution**: visibility `Public`, all regions, free.
+5. **Test instructions**: optional, but it speeds up the review. The text is in section 7.
+6. **Submit for review**. The first review usually takes one to three working days, sometimes
+   longer. The review tab shows the status and the contact email gets a letter.
 
-## 4. Тексты листинга
+## 4. Listing copy
 
 ### Name
 
@@ -58,15 +62,18 @@ npm run package   # собирает dist/curfew-extension-1.0.0.zip и печа
 Curfew
 ```
 
-### Summary (лимит 132 символа)
+### Summary (132 character limit)
 
-Английский, он же лежит в `_locales/en/messages.json` как `extDesc`:
+English, the same string lives in `_locales/en/messages.json` as `extDesc`:
 
 ```
 Daily time budgets for the sites you choose. Local-only, zero tracking.
 ```
 
-Русский, для второго языка листинга (`_locales/ru/messages.json`):
+Russian, for the second listing language (from `_locales/ru/messages.json`). This block is
+meant to stay Russian:
+
+**RU**
 
 ```
 Дневные лимиты времени для выбранных вами сайтов. Всё локально, ноль слежки.
@@ -74,12 +81,13 @@ Daily time budgets for the sites you choose. Local-only, zero tracking.
 
 ### Category, language, links
 
-- Category: `Productivity`. Если в списке есть `Well-being`, брать его, он точнее.
-- Language: `English` как основной, затем добавить `Russian` вторым языком листинга.
+- Category: `Productivity`. If `Well-being` is offered, take it, it describes the product
+  more closely.
+- Language: `English` as the default, then add `Russian` as a second listing language.
 - Homepage URL: https://github.com/devacc8/curfew-extension
 - Support URL: https://github.com/devacc8/curfew-extension/issues
 - Privacy policy URL: https://devacc8.github.io/curfew-extension/PRIVACY.html
-- Mature content: нет. Видео: нет.
+- Mature content: no. Promo video: none.
 
 ### Description (EN)
 
@@ -114,6 +122,10 @@ Works offline. Manifest V3. Open source under the MIT license.
 
 ### Description (RU)
 
+This block is the copy for the Russian-language listing, so it stays Russian.
+
+**RU**
+
 ```
 Curfew ставит дневной лимит на сайты, которые вы сами выбрали, и закрывает их, когда лимит исчерпан.
 
@@ -143,9 +155,9 @@ Curfew ставит дневной лимит на сайты, которые в
 Работает офлайн. Manifest V3. Открытый код под лицензией MIT.
 ```
 
-## 5. Privacy practices: обоснование разрешений
+## 5. Privacy practices: permission justifications
 
-Дашборд просит текст под каждое разрешение. Ниже английские формулировки, они и нужны.
+The dashboard asks for text under every permission. The wording below is what goes in.
 
 **Single purpose**
 
@@ -195,51 +207,53 @@ Reads the address of the current tab, and only when the user clicks the "Add thi
 Host access is optional and requested one origin at a time, only for the site the user is adding at that moment. The extension has no access to any site until the user grants it, and any grant can be revoked in chrome://extensions at any time. This is why installing Curfew shows no permission warnings.
 ```
 
-## 6. Privacy practices: ответы про данные
+## 6. Privacy practices: data answers
 
-- **Does the extension collect or use user data?** Ни одна категория не отмечается: ни
-  personally identifiable information, ни health, ни financial, ни authentication, ни
-  personal communications, ни location, ни web history, ни user activity, ни website
-  content. Обоснование, если поле спросит:
+- **Does the extension collect or use user data?** No category is checked: not personally
+  identifiable information, not health, not financial, not authentication, not personal
+  communications, not location, not web history, not user activity, not website content.
+  If a field asks for a justification, this is it:
 
 ```
 Curfew stores the user's own configuration (the sites they added, their budgets, settings and local counters) in chrome.storage.local on the device. That data is never transmitted to us or to anyone else, is not sold or shared, and is deleted when the extension is uninstalled. The extension makes no network requests at all.
 ```
 
-- **Are you using remote code?** Нет. Вся логика лежит в архиве, ничего не
-  подгружается и не выполняется извне. Запрет на сетевые примитивы проверяется тестом
+- **Are you using remote code?** No. All the logic ships inside the archive, nothing is
+  fetched or executed from outside. The ban on network primitives is enforced by
   `tests/invariants.test.js`.
-- **Certifications**: три подтверждения отмечаются как выполненные (данные не продаются,
-  не используются для оценки кредитоспособности, не используются для целей, не связанных
-  с единственной целью расширения).
-- **Data usage / limited use**: соответствие политике подтверждается, собираемых данных нет.
+- **Certifications**: all three are confirmed (data is not sold, not used for
+  creditworthiness, not used for purposes unrelated to the extension's single purpose).
+- **Data usage / limited use**: compliance is confirmed, and there is no collected data to
+  begin with.
 
-## 7. Test instructions (для обзора)
+## 7. Test instructions (for the reviewer)
 
 ```
 No account and no credentials are needed. Install the extension, click the toolbar icon, type example.com into the field with a budget of 1 minute and press Add. Chrome asks for access to example.com, accept it. Open https://example.com in a tab and stay on it for about a minute: when the budget is spent the page is replaced by the "Under curfew" wall. The pass button on the wall ("Stay anyway for 15 minutes") opens a challenge first if Willpower Protection is enabled in the settings page. The same flow works for any site, x.com is what it is used for in practice. Nothing else is required and the extension works fully offline.
 ```
 
-## 8. Чеклист отправки
+## 8. Submission checklist
 
-- [ ] `npm test` и `npm run smoke` зелёные
-- [ ] `npm run package`, версия в архиве 1.0.0
-- [ ] Архив загружен в дашборд, манифест прочитан без ошибок
-- [ ] Листинг заполнен, скриншоты 1280x800 загружены (пять штук), промо-тайлы загружены
-- [ ] Privacy practices заполнены, ссылка на политику открывается без входа в аккаунт
-- [ ] Distribution: Public, все регионы, бесплатно
+- [ ] `npm test` and `npm run smoke` are green
+- [ ] `npm run package`, and the version inside the archive is 1.0.0
+- [ ] The archive is uploaded and the dashboard reads the manifest without errors
+- [ ] The listing is filled in, five 1280x800 screenshots uploaded, promo tiles uploaded
+- [ ] Privacy practices are filled in, and the policy link opens without signing in
+- [ ] Distribution: Public, all regions, free
 - [ ] Submit for review
 
-## 9. Обновления после публикации
+## 9. Updates after publishing
 
-1. Поднять версию в четырёх местах: `manifest.json`, `package.json`,
-   `package-lock.json` (два места: корень и `packages[""]`), `docs/TECHNICAL_DESIGN.md`.
+1. Bump the version in four places: `manifest.json`, `package.json`,
+   `package-lock.json` (two spots: the root and `packages[""]`), and
+   `docs/TECHNICAL_DESIGN.md`.
 2. `npm test && npm run package`.
-3. В дашборде **Package** загрузить новый zip, затем **Submit for review**. Правки без
-   изменения разрешений обычно проходят быстрее.
-4. Если что-то сломалось, в дашборде есть откат на предыдущую опубликованную версию.
+3. In the dashboard upload the new zip on the **Package** tab, then **Submit for review**.
+   Changes that do not touch permissions usually clear the review faster.
+4. If a release turns out broken, the dashboard can roll back to the previous published
+   version.
 
-Частые причины отказа и что у нас с ними: описание не совпадает с поведением (сверено с
-кодом), разрешение без объяснения (объяснены все), несколько целей у одного расширения
-(цель одна), непрозрачная работа с данными (данных нет, есть политика и тест на
-отсутствие сети).
+Common rejection reasons and where this project stands: the description does not match the
+behaviour (checked against the code), a permission without an explanation (all of them are
+explained), more than one purpose (there is one), unclear data handling (there is no data,
+and there is a policy plus a test that the extension never opens a network connection).
