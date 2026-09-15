@@ -139,7 +139,7 @@ Rules:
 {
   "manifest_version": 3,
   "name": "Curfew",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "minimum_chrome_version": "121",
   "default_locale": "en",
 

@@ -249,6 +249,40 @@ QUÉ NO HACE
 Funciona sin conexión. Manifest V3. Código abierto con licencia MIT.
 ```
 
+## 4b. What's new in 1.1.0
+
+The dashboard asks for release notes on an update. One block per listing language.
+
+English:
+
+```
+Two new languages. Curfew now speaks Chinese (Simplified) and Spanish, chosen by the browser language like the other two. Nothing else changed, and the extension still makes no network requests at all.
+```
+
+Russian:
+
+**RU**
+
+```
+Два новых языка. Curfew говорит на китайском (упрощённом) и испанском, язык выбирается по языку браузера, как и раньше для двух других. Больше ничего не изменилось, и расширение по-прежнему не делает ни одного сетевого запроса.
+```
+
+Chinese (Simplified):
+
+**ZH**
+
+```
+新增两种语言。Curfew 现在支持简体中文和西班牙语，与原有的两种一样，按浏览器语言自动选择。其他部分没有改动，扩展依然不发起任何网络请求。
+```
+
+Spanish:
+
+**ES**
+
+```
+Dos idiomas nuevos. Curfew ahora habla chino simplificado y español, elegidos por el idioma del navegador igual que los otros dos. Nada más ha cambiado, y la extensión sigue sin hacer ninguna petición de red.
+```
+
 ## 5. Privacy practices: permission justifications
 
 The dashboard asks for text under every permission. The wording below is what goes in.
