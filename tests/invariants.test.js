@@ -88,20 +88,38 @@ test("no network primitives anywhere in src/", () => {
 });
 
 test("locales are well-formed Chrome i18n trees and stay in sync", () => {
-  const en = JSON.parse(readFileSync(join(ROOT, "_locales/en/messages.json"), "utf8"));
-  const ru = JSON.parse(readFileSync(join(ROOT, "_locales/ru/messages.json"), "utf8"));
-  for (const [name, data] of [["en", en], ["ru", ru]]) {
+  // Enumerate the folder instead of naming locales by hand: a new language is
+  // then covered by this test the moment it lands, which is the point of an
+  // invariant. Naming en and ru explicitly is how zh_CN and es slipped past.
+  const localesDir = join(ROOT, "_locales");
+  const names = readdirSync(localesDir)
+    .filter((name) => statSync(join(localesDir, name)).isDirectory())
+    .sort();
+  assert.ok(names.includes("en"), "the default locale tree is missing");
+
+  const trees = {};
+  for (const name of names) {
+    const data = JSON.parse(readFileSync(join(localesDir, name, "messages.json"), "utf8"));
+    trees[name] = data;
     for (const [key, value] of Object.entries(data)) {
       assert.equal(
         typeof value?.message, "string",
         `${name}/${key}: not a { message } tree`
       );
+      assert.notEqual(
+        value.message.trim(), "",
+        `${name}/${key}: empty message`
+      );
     }
   }
-  assert.deepEqual(
-    Object.keys(en).sort(), Object.keys(ru).sort(),
-    "en/ru locale keys diverge"
-  );
+
+  const baseline = Object.keys(trees.en).sort();
+  for (const name of names) {
+    assert.deepEqual(
+      Object.keys(trees[name]).sort(), baseline,
+      `${name} locale keys diverge from en`
+    );
+  }
 });
 
 test("common/ purity: chrome.* only in storage.js", () => {

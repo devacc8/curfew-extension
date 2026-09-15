@@ -1,0 +1,248 @@
+{
+  "extName": {
+    "message": "Curfew"
+  },
+  "extDesc": {
+    "message": "Presupuestos diarios de tiempo para los sitios que elijas. Todo local, sin rastreo."
+  },
+  "masterToggle": {
+    "message": "Todos los presupuestos activos"
+  },
+  "patternPlaceholder": {
+    "message": "x.com o *.x.com"
+  },
+  "minutesPlaceholder": {
+    "message": "Presupuesto, min"
+  },
+  "add": {
+    "message": "Añadir"
+  },
+  "empty": {
+    "message": "Aún no hay sitios. Añade uno para empezar."
+  },
+  "remove": {
+    "message": "Quitar"
+  },
+  "budgetUnit": {
+    "message": "min/día"
+  },
+  "invalidPattern": {
+    "message": "Escribe un dominio como x.com o *.x.com. Se permiten comodines, no hace falta https://."
+  },
+  "contextAddSite": {
+    "message": "Añadir este sitio a Curfew"
+  },
+  "pressAddToGrant": {
+    "message": "Pulsa Añadir para conceder acceso."
+  },
+  "addedGranted": {
+    "message": "Añadido. Acceso concedido."
+  },
+  "addedDenied": {
+    "message": "Añadido sin acceso. Puedes concederlo luego desde la lista de sitios."
+  },
+  "openOptions": {
+    "message": "Ajustes"
+  },
+  "accessGranted": {
+    "message": "con seguimiento"
+  },
+  "accessDenied": {
+    "message": "sin seguimiento"
+  },
+  "grantAccess": {
+    "message": "Conceder acceso"
+  },
+  "optionsTitle": {
+    "message": "Ajustes de Curfew"
+  },
+  "sitesHeading": {
+    "message": "Sitios bajo toque de queda"
+  },
+  "searchPlaceholder": {
+    "message": "Buscar…"
+  },
+  "noMatches": {
+    "message": "Sin resultados."
+  },
+  "addHeading": {
+    "message": "Añadir un sitio"
+  },
+  "todayLabel": {
+    "message": "Hoy:"
+  },
+  "yesterdayLabel": {
+    "message": "Ayer:"
+  },
+  "topSitesHeading": {
+    "message": "Sitios más visitados hoy"
+  },
+  "yourSitesHeading": {
+    "message": "Tus sitios"
+  },
+  "blockNow": {
+    "message": "Bloquear"
+  },
+  "closedLabel": {
+    "message": "cerrado"
+  },
+  "leftSuffix": {
+    "message": "restante"
+  },
+  "dataHeading": {
+    "message": "Datos"
+  },
+  "exportData": {
+    "message": "Exportar datos"
+  },
+  "importData": {
+    "message": "Importar"
+  },
+  "imported": {
+    "message": "Importado."
+  },
+  "importFailed": {
+    "message": "Error al importar: no es un archivo de exportación de Curfew."
+  },
+  "protectHeading": {
+    "message": "Protección de la fuerza de voluntad"
+  },
+  "protectDesc": {
+    "message": "Cuando está activada, cada cambio permisivo te pide resolver antes un desafío: una ecuación o el rompecabezas de 15. Añadir sitios y Bloquear siguen siendo gratis."
+  },
+  "protectStatusOn": {
+    "message": "activada"
+  },
+  "protectStatusOff": {
+    "message": "desactivada"
+  },
+  "protectEnable": {
+    "message": "Activar"
+  },
+  "protectDisable": {
+    "message": "Desactivar"
+  },
+  "dialogOk": {
+    "message": "Aceptar"
+  },
+  "dialogCancel": {
+    "message": "Cancelar"
+  },
+  "passesLimitLabel": {
+    "message": "Pases de 15 min al día, en todos los sitios"
+  },
+  "passesLeftLabel": {
+    "message": "Pases que quedan hoy:"
+  },
+  "limitReached": {
+    "message": "No quedan pases de 15 min hoy."
+  },
+  "blockedTitle": {
+    "message": "Bajo toque de queda"
+  },
+  "blockedText": {
+    "message": "Este sitio está cerrado por hoy. Se abre de nuevo después de medianoche."
+  },
+  "stayAnyway": {
+    "message": "Quedarme 15 minutos de todos modos"
+  },
+  "usedTodayLabel": {
+    "message": "Tiempo aquí hoy:"
+  },
+  "passesTodayLabel": {
+    "message": "Pases de 15 minutos usados hoy:"
+  },
+  "minutesShort": {
+    "message": "min"
+  },
+  "passFailed": {
+    "message": "No se pudo levantar el toque de queda. Prueba a recargar la página."
+  },
+  "challengeTitle": {
+    "message": "Resuelve para continuar"
+  },
+  "answerPlaceholder": {
+    "message": "Respuesta"
+  },
+  "challengeWrong": {
+    "message": "Incorrecto. Prueba con este:"
+  },
+  "puzzleMoves": {
+    "message": "Movimientos"
+  },
+  "puzzleSolved": {
+    "message": "¡Resuelto!"
+  },
+  "kindEquation": {
+    "message": "Ecuación"
+  },
+  "kindPuzzle": {
+    "message": "Rompecabezas de 15"
+  },
+  "protectEnabled": {
+    "message": "Protección activada."
+  },
+  "protectOffMsg": {
+    "message": "Protección desactivada."
+  },
+  "badgeTitleGranted": {
+    "message": "Curfew tiene acceso de Chrome a este sitio"
+  },
+  "badgeTitleDenied": {
+    "message": "Concede acceso para empezar a contar este sitio"
+  },
+  "curfewLifted": {
+    "message": "El toque de queda se levantó. Haz clic en la dirección de arriba para continuar."
+  },
+  "sessionLimitTitle": {
+    "message": "Sesión continua máxima en minutos (0 = desactivado)"
+  },
+  "cooldownTitle": {
+    "message": "Descanso después de una sesión larga, en minutos (0 = desactivado)"
+  },
+  "sessionUnit": {
+    "message": "min/visita"
+  },
+  "cooldownUnit": {
+    "message": "min de descanso"
+  },
+  "cooldownLabel": {
+    "message": "Descanso"
+  },
+  "returnsInLabel": {
+    "message": "Vuelve en"
+  },
+  "hoursShort": {
+    "message": "h"
+  },
+  "secondsShort": {
+    "message": "s"
+  },
+  "addCurrentSite": {
+    "message": "Añadir el sitio actual"
+  },
+  "noCurrentSite": {
+    "message": "Esta pestaña no tiene sitio que añadir"
+  },
+  "closedBudgetReason": {
+    "message": "Presupuesto diario agotado"
+  },
+  "closedCooldownReason": {
+    "message": "En descanso"
+  },
+  "saveFailed": {
+    "message": "No se pudo guardar. Revisa la consola del service worker de la extensión"
+  },
+  "themeLabel": {
+    "message": "Apariencia"
+  },
+  "themeSystem": {
+    "message": "Seguir al sistema"
+  },
+  "themeDark": {
+    "message": "Oscuro"
+  },
+  "themeLight": {
+    "message": "Claro"
+  }
+}

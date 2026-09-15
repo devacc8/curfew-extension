@@ -87,11 +87,28 @@ meant to stay Russian:
 Дневные лимиты времени для выбранных вами сайтов. Всё локально, ноль слежки.
 ```
 
+Chinese (Simplified), from `_locales/zh_CN/messages.json`:
+
+**ZH**
+
+```
+为你选择的网站设置每日时间预算。完全本地，零追踪。
+```
+
+Spanish, from `_locales/es/messages.json`:
+
+**ES**
+
+```
+Presupuestos diarios de tiempo para los sitios que elijas. Todo local, sin rastreo.
+```
+
 ### Category, language, links
 
 - Category: `Productivity`. If `Well-being` is offered, take it, it describes the product
   more closely.
-- Language: `English` as the default, then add `Russian` as a second listing language.
+- Language: `English` as the default, then add `Russian`, `Chinese (Simplified)` and
+  `Spanish` as listing languages.
 - Homepage URL: https://github.com/devacc8/curfew-extension
 - Support URL: https://github.com/devacc8/curfew-extension/issues
 - Privacy policy URL: https://devacc8.github.io/curfew-extension/PRIVACY.html
@@ -161,6 +178,76 @@ Curfew ставит дневной лимит на сайты, которые в
 - Никаких предупреждений при установке: доступ спрашивается по одному сайту и его можно отозвать.
 
 Работает офлайн. Manifest V3. Открытый код под лицензией MIT.
+```
+
+### Description (ZH)
+
+Copy for the Simplified Chinese listing, so it stays Chinese.
+
+**ZH**
+
+```
+Curfew 为你选择的网站设置每日时间预算，预算用完后把网站关掉。
+
+你选一个网站和每天的分钟数。Curfew 只统计你确实在里面的时间：标签页打开、键盘有操作。分钟用完后，网站会在网络层被拦住，直到本地时间的午夜。这不是浮在页面上的提醒框，请求根本不会完成。
+
+有何不同
+大多数限制工具在你点下「再来 5 分钟」的那一刻就失效了。Curfew 会为此收费。每次通行是 15 分钟，每天的次数有限，而开启意志力保护后，通行前必须先解一道算式或数字华容道。添加网站和屏蔽始终免费，阻力只加在放松的那一侧。
+
+它能做什么
+- 每个网站一个每日预算，最低一分钟。
+- 只统计活跃时间：空闲和后台标签页不消耗预算。
+- 离开一段时间后返还少量额度，有上限，短时间访问不会被惩罚。
+- 可选的单次上限和休息：一次连续访问的最长时间，之后强制休息。
+- 按本地时间午夜重置，当天的额度会正确穿过日期边界。
+- 拦截页面会显示今天的时间花在哪里，通行按钮就在上面。
+- 意志力保护：任何放松限制的操作之前都要先解算式或数字华容道，导入文件也一样。
+- 外观跟随系统，也可以手动选深色或浅色。
+- 导出和导入属于你自己的 JSON 文件。除此之外没有任何数据离开浏览器。
+
+它不做什么
+- 没有账号，没有登录，没有同步。
+- 没有分析，没有遥测，没有崩溃上报。
+- 完全没有网络请求：根本没有服务器可以通信，这一点由仓库里的测试保证。
+- 不读取你的浏览历史。Curfew 只认识你亲自添加的网站。
+- 安装时没有任何警告：访问权限逐个网站申请，并且可以随时撤销。
+
+离线可用。Manifest V3。MIT 许可下的开源软件。
+```
+
+### Description (ES)
+
+Copy for the Spanish listing, so it stays Spanish.
+
+**ES**
+
+```
+Curfew pone un presupuesto diario de tiempo en los sitios que tú elijas y los cierra cuando se agota.
+
+Eliges un sitio y un número de minutos al día. Curfew cuenta solo el tiempo que de verdad estás allí: con la pestaña abierta y el teclado activo. Cuando se acaban los minutos, el sitio se bloquea a nivel de red hasta la medianoche local. No es un aviso encima de la página: la petición nunca llega.
+
+POR QUÉ ES DISTINTO
+Casi todos los limitadores se rinden en el momento en que pulsas "5 minutos más". Curfew te lo cobra. Cada pase son 15 minutos, los pases tienen un límite diario y, con la Protección de la fuerza de voluntad activada, conseguir uno exige resolver antes una ecuación o el rompecabezas de 15. Añadir un sitio y bloquear uno siguen siendo gratis, así que la fricción está solo en la dirección permisiva.
+
+QUÉ HACE
+- Un presupuesto diario por sitio, desde un minuto.
+- Cuenta solo el tiempo activo: el rato inactivo y las pestañas en segundo plano no gastan tu presupuesto.
+- Devuelve un poco de crédito tras un tiempo fuera, con tope, para no castigar una visita corta.
+- Límite de sesión y descanso opcionales: un máximo de visita continua y después una pausa obligatoria.
+- Reinicio a medianoche en tu reloj local, repartiendo el crédito del día a través del cambio de fecha.
+- Una página de bloqueo que muestra en qué se fue el tiempo de hoy, con el botón de pase encima.
+- Protección de la fuerza de voluntad: una ecuación o el rompecabezas de 15 antes de cualquier cambio permisivo, incluida la importación de un archivo.
+- La apariencia sigue al sistema, o eliges oscuro o claro a mano.
+- Exporta e importa un archivo JSON que es tuyo. Nada más sale del navegador.
+
+QUÉ NO HACE
+- Sin cuenta, sin inicio de sesión, sin sincronización.
+- Sin analíticas, sin telemetría, sin informes de fallos.
+- Ninguna petición de red: no hay servidor con el que hablar, y un test del repositorio lo garantiza.
+- No lee tu historial de navegación. Curfew solo conoce un sitio porque tú lo añadiste.
+- Sin avisos al instalar: el acceso se pide sitio a sitio y se puede revocar.
+
+Funciona sin conexión. Manifest V3. Código abierto con licencia MIT.
 ```
 
 ## 5. Privacy practices: permission justifications

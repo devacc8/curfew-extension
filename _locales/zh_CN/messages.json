@@ -1,0 +1,248 @@
+{
+  "extName": {
+    "message": "Curfew"
+  },
+  "extDesc": {
+    "message": "为自选网站设置每日时间预算。完全本地，零追踪。"
+  },
+  "masterToggle": {
+    "message": "所有预算已启用"
+  },
+  "patternPlaceholder": {
+    "message": "x.com 或 *.x.com"
+  },
+  "minutesPlaceholder": {
+    "message": "预算，分钟"
+  },
+  "add": {
+    "message": "添加"
+  },
+  "empty": {
+    "message": "还没有网站。添加一个开始。"
+  },
+  "remove": {
+    "message": "移除"
+  },
+  "budgetUnit": {
+    "message": "分钟/天"
+  },
+  "invalidPattern": {
+    "message": "请输入类似 x.com 或 *.x.com 的域名。可以用通配符，不需要 https://。"
+  },
+  "contextAddSite": {
+    "message": "把此网站加入 Curfew"
+  },
+  "pressAddToGrant": {
+    "message": "点击“添加”以授予权限。"
+  },
+  "addedGranted": {
+    "message": "已添加，权限已授予。"
+  },
+  "addedDenied": {
+    "message": "已添加但未授予权限。可以稍后在网站列表里授权。"
+  },
+  "openOptions": {
+    "message": "设置"
+  },
+  "accessGranted": {
+    "message": "已计入"
+  },
+  "accessDenied": {
+    "message": "未计入"
+  },
+  "grantAccess": {
+    "message": "授予权限"
+  },
+  "optionsTitle": {
+    "message": "Curfew 设置"
+  },
+  "sitesHeading": {
+    "message": "受宵禁管理的网站"
+  },
+  "searchPlaceholder": {
+    "message": "搜索…"
+  },
+  "noMatches": {
+    "message": "没有匹配项。"
+  },
+  "addHeading": {
+    "message": "添加网站"
+  },
+  "todayLabel": {
+    "message": "今天："
+  },
+  "yesterdayLabel": {
+    "message": "昨天："
+  },
+  "topSitesHeading": {
+    "message": "今日访问最多的网站"
+  },
+  "yourSitesHeading": {
+    "message": "你的网站"
+  },
+  "blockNow": {
+    "message": "屏蔽"
+  },
+  "closedLabel": {
+    "message": "已关闭"
+  },
+  "leftSuffix": {
+    "message": "剩余"
+  },
+  "dataHeading": {
+    "message": "数据"
+  },
+  "exportData": {
+    "message": "导出数据"
+  },
+  "importData": {
+    "message": "导入"
+  },
+  "imported": {
+    "message": "已导入。"
+  },
+  "importFailed": {
+    "message": "导入失败：这不是 Curfew 的导出文件。"
+  },
+  "protectHeading": {
+    "message": "意志力保护"
+  },
+  "protectDesc": {
+    "message": "开启后，任何放宽限制的操作都需要先完成一道挑战：算式或数字华容道。添加网站和屏蔽始终免费。"
+  },
+  "protectStatusOn": {
+    "message": "开"
+  },
+  "protectStatusOff": {
+    "message": "关"
+  },
+  "protectEnable": {
+    "message": "启用"
+  },
+  "protectDisable": {
+    "message": "停用"
+  },
+  "dialogOk": {
+    "message": "确定"
+  },
+  "dialogCancel": {
+    "message": "取消"
+  },
+  "passesLimitLabel": {
+    "message": "每天 15 分钟通行次数，适用于所有网站"
+  },
+  "passesLeftLabel": {
+    "message": "今天剩余通行次数："
+  },
+  "limitReached": {
+    "message": "今天的 15 分钟通行次数已用完。"
+  },
+  "blockedTitle": {
+    "message": "已到宵禁时间"
+  },
+  "blockedText": {
+    "message": "该网站今天已关闭，午夜后重新开放。"
+  },
+  "stayAnyway": {
+    "message": "仍然停留 15 分钟"
+  },
+  "usedTodayLabel": {
+    "message": "今天在此网站的时间："
+  },
+  "passesTodayLabel": {
+    "message": "今天已用的 15 分钟通行次数："
+  },
+  "minutesShort": {
+    "message": "分钟"
+  },
+  "passFailed": {
+    "message": "无法解除宵禁。请尝试重新加载此页面。"
+  },
+  "challengeTitle": {
+    "message": "解题以继续"
+  },
+  "answerPlaceholder": {
+    "message": "答案"
+  },
+  "challengeWrong": {
+    "message": "不对。试试这道："
+  },
+  "puzzleMoves": {
+    "message": "步数"
+  },
+  "puzzleSolved": {
+    "message": "已完成！"
+  },
+  "kindEquation": {
+    "message": "算式"
+  },
+  "kindPuzzle": {
+    "message": "数字华容道"
+  },
+  "protectEnabled": {
+    "message": "保护已启用。"
+  },
+  "protectOffMsg": {
+    "message": "保护已停用。"
+  },
+  "badgeTitleGranted": {
+    "message": "Curfew 已获得此网站的访问权限"
+  },
+  "badgeTitleDenied": {
+    "message": "授予权限后开始统计此网站"
+  },
+  "curfewLifted": {
+    "message": "宵禁已解除。点击上方地址继续。"
+  },
+  "sessionLimitTitle": {
+    "message": "单次连续使用上限，分钟（0 表示关闭）"
+  },
+  "cooldownTitle": {
+    "message": "长时间使用后的休息时长，分钟（0 表示关闭）"
+  },
+  "sessionUnit": {
+    "message": "分钟/次"
+  },
+  "cooldownUnit": {
+    "message": "分钟休息"
+  },
+  "cooldownLabel": {
+    "message": "休息"
+  },
+  "returnsInLabel": {
+    "message": "恢复倒计时"
+  },
+  "hoursShort": {
+    "message": "小时"
+  },
+  "secondsShort": {
+    "message": "秒"
+  },
+  "addCurrentSite": {
+    "message": "添加当前网站"
+  },
+  "noCurrentSite": {
+    "message": "此标签页没有可添加的网站"
+  },
+  "closedBudgetReason": {
+    "message": "每日预算已用完"
+  },
+  "closedCooldownReason": {
+    "message": "正在休息"
+  },
+  "saveFailed": {
+    "message": "无法保存。请查看扩展的 service worker 控制台"
+  },
+  "themeLabel": {
+    "message": "外观"
+  },
+  "themeSystem": {
+    "message": "跟随系统"
+  },
+  "themeDark": {
+    "message": "深色"
+  },
+  "themeLight": {
+    "message": "浅色"
+  }
+}
