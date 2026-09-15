@@ -5,15 +5,14 @@ Live listing: https://chromewebstore.google.com/detail/curfew/obnikdokealeimpbhf
 First published version: **1.0.0**. The package builds with one command, and the listing
 copy plus every dashboard answer sits below, ready to paste.
 
-Everything written to a file in this repository is English, this document included. The two
-blocks marked **RU** are the store copy for the Russian-language listing, so they stay
-Russian on purpose.
+Everything written to a file in this repository is English, this document included. The blocks marked **RU**, **ZH** and **ES** are the store copy for those listing
+languages, so they stay in their own language on purpose.
 
 ## 1. What the repository already has
 
 | What | Where | Command |
 |---|---|---|
-| ZIP for upload | `dist/curfew-extension-1.0.0.zip` | `npm run package` |
+| ZIP for upload | `dist/curfew-extension-1.1.0.zip` | `npm run package` |
 | Privacy policy | https://devacc8.github.io/curfew-extension/PRIVACY.html | Pages: branch `main`, folder `/` |
 | Icon 128x128 | `icons/icon128.png` | `npm run gen:icons` |
 | Screenshots 1280x800 | `docs/screenshots/popup.png`, `options.png`, `wall.png`, `challenge.png`, `puzzle.png` | `npm run capture` |
@@ -34,7 +33,7 @@ Check the package before uploading:
 ```bash
 npm test          # lint, types, 200 unit tests, invariants
 npm run smoke     # 14 E2E checks in headless Chrome
-npm run package   # builds dist/curfew-extension-1.0.0.zip and prints its sha256
+npm run package   # builds dist/curfew-extension-1.1.0.zip and prints its sha256
 ```
 
 `npm run package` refuses to build if the manifest is missing required fields, if the
@@ -52,7 +51,7 @@ more than 200 files.
 
 ## 3. Steps in the dashboard
 
-1. **New item**, then upload `dist/curfew-extension-1.0.0.zip`.
+1. **New item**, then upload `dist/curfew-extension-1.1.0.zip`.
 2. **Store listing**: name, short description, detailed description, category, language,
    icon, screenshots, promo tiles. The copy is in section 4.
 3. **Privacy practices**: single purpose, a justification per permission, and the data
@@ -92,7 +91,7 @@ Chinese (Simplified), from `_locales/zh_CN/messages.json`:
 **ZH**
 
 ```
-为你选择的网站设置每日时间预算。完全本地，零追踪。
+为自选网站设置每日时间预算。完全本地，零追踪。
 ```
 
 Spanish, from `_locales/es/messages.json`:
@@ -330,7 +329,7 @@ No account and no credentials are needed. Install the extension, click the toolb
 ## 8. Submission checklist
 
 - [ ] `npm test` and `npm run smoke` are green
-- [ ] `npm run package`, and the version inside the archive is 1.0.0
+- [ ] `npm run package`, and the version inside the archive is 1.1.0
 - [ ] The archive is uploaded and the dashboard reads the manifest without errors
 - [ ] The listing is filled in, five 1280x800 screenshots uploaded, promo tiles uploaded
 - [ ] Privacy practices are filled in, and the policy link opens without signing in

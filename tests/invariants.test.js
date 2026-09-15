@@ -122,6 +122,23 @@ test("locales are well-formed Chrome i18n trees and stay in sync", () => {
   }
 });
 
+test("the store copy quotes the shipped description verbatim", () => {
+  // The summary blocks in docs/STORE.md are pasted into the dashboard, so they
+  // have to be the same strings the extension ships. Otherwise the store and
+  // the popup disagree in a language the author cannot proofread, which is
+  // exactly how the zh_CN summary drifted from its extDesc.
+  const store = readFileSync(join(ROOT, "docs", "STORE.md"), "utf8");
+  const localesDir = join(ROOT, "_locales");
+  for (const name of readdirSync(localesDir)) {
+    if (!statSync(join(localesDir, name)).isDirectory()) continue;
+    const tree = JSON.parse(readFileSync(join(localesDir, name, "messages.json"), "utf8"));
+    assert.ok(
+      store.includes(tree.extDesc.message),
+      `docs/STORE.md does not quote the ${name} extDesc`
+    );
+  }
+});
+
 test("common/ purity: chrome.* only in storage.js", () => {
   const commonDir = join(ROOT, "src", "common");
   for (const file of jsFiles.filter((f) => dirname(f) === commonDir)) {
